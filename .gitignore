@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.venv/
+.vscode/
+_验证运行/
+tests/
+Thumbs.db
+Desktop.ini

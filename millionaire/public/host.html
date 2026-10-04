@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>主持人面板 · 家庭百万富翁</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--bg:#0d1230;--panel:#17204a;--panel2:#1f2a5c;--line:#34427f;--gold:#ffc83d;--txt:#eef1ff;--dim:#9aa7d9;--ok:#2fc272;--bad:#ef5350;--blue:#4f8cff}
+html,body{background:var(--bg);color:var(--txt);font-family:"Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif;font-size:16px}
+body{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;border-radius:12px;padding:12px 16px;background:var(--panel2);font-weight:700;min-height:46px}
+button:active{filter:brightness(1.25)}
+button[disabled]{opacity:.4;pointer-events:none}
+.gold{background:linear-gradient(#ffd54a,#f39c12);color:#2a1b00}
+.green{background:linear-gradient(#3ed585,#1e9e58);color:#fff}
+.red{background:linear-gradient(#f26a67,#c62828);color:#fff}
+.blue{background:linear-gradient(#5b98ff,#2f6be0);color:#fff}
+.ghost{background:transparent;border:2px solid var(--line)}
+input,select,textarea{width:100%;background:#0b1030;border:2px solid var(--line);border-radius:10px;padding:10px 12px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--gold)}
+textarea{resize:vertical;min-height:70px}
+label{display:block;font-size:14px;color:var(--dim);margin:12px 0 4px}
+.wrap{max-width:860px;margin:0 auto;padding:12px}
+h2{font-size:20px;margin:6px 0 10px}
+.card{background:var(--panel);border:2px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+.row{display:flex;gap:10px;align-items:center}
+.row>*{flex:1}
+.row>.fix{flex:none}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.small{font-size:13px;color:var(--dim)}
+.tag{display:inline-block;padding:1px 10px;border-radius:20px;font-size:13px;font-weight:700;color:#10131f;margin-right:6px}
+.c0{background:#ffb74d}.c1{background:#4fc3f7}.c2{background:#81c784}.c3{background:#f48fb1}.lv{background:#e0e6ff}
+.warn{color:#ffb300}
+#top{position:sticky;top:0;z-index:10;background:rgba(13,18,48,.96);border-bottom:2px solid var(--line);padding:8px 12px;display:flex;align-items:center;gap:10px}
+#top b{font-size:18px;color:var(--gold)}
+#conn{margin-left:auto;font-size:13px;color:var(--dim)}
+#conn i{display:inline-block;width:10px;height:10px;border-radius:50%;background:#777;margin-right:5px}
+#conn.on i{background:var(--ok)}#conn.off i{background:var(--bad)}
+nav{position:fixed;left:0;right:0;bottom:0;z-index:10;display:flex;background:#0a0e26;border-top:2px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border-radius:0;background:transparent;font-size:15px;min-height:62px;color:var(--dim)}
+nav button.on{color:var(--gold);box-shadow:inset 0 3px 0 var(--gold)}
+.pg{display:none}.pg.on{display:block}
+
+/* 遥控 */
+.pl{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.pbtn{padding:16px 8px;border-radius:16px;background:var(--panel2);border:2px solid var(--line);text-align:center}
+.pbtn .av{width:64px;height:64px;border-radius:50%;margin:0 auto 6px;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:900;color:#1a1200}
+.pbtn .n{font-size:19px;font-weight:800}
+.pbtn .s{font-size:13px;color:var(--dim);margin-top:2px}
+.qh{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.qq{font-size:20px;font-weight:700;line-height:1.45;margin:6px 0 12px}
+.opts{display:grid;grid-template-columns:1fr;gap:8px}
+.op{display:flex;align-items:center;gap:10px;text-align:left;padding:12px 14px;background:var(--panel2);border:2px solid var(--line);font-size:18px;font-weight:600}
+.op .lt{flex:none;width:30px;font-weight:900;color:var(--gold)}
+.op .ck{margin-left:auto;font-size:14px;color:#9bf2bf}
+.op.ans{border-color:#2fc272;background:rgba(47,194,114,.16)}
+.op.sel{border-color:var(--gold);background:rgba(255,200,61,.22)}
+.op.gone{opacity:.3;text-decoration:line-through}
+.op.rt{background:rgba(47,194,114,.35)}
+.op.wr{background:rgba(239,83,80,.35)}
+.expl{margin-top:10px;padding:10px 12px;background:#0b1030;border-radius:10px;font-size:15px;line-height:1.5;color:#cfd8ff}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.bar button{flex:1;min-width:120px}
+.big{width:100%;min-height:58px;font-size:20px}
+.card>button.ghost:only-child{width:100%}
+.info{padding:10px 12px;border-radius:12px;background:rgba(255,200,61,.12);border:2px solid rgba(255,200,61,.35);margin-bottom:10px;line-height:1.55}
+.lad{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.lad span{padding:2px 7px;border-radius:8px;background:#0b1030;font-size:12px;color:var(--dim)}
+.lad span.d{background:rgba(47,194,114,.3);color:#bff5d4}
+.lad span.c{background:var(--gold);color:#2a1b00;font-weight:800}
+.lad span.s{outline:1px solid #4f8cff}
+
+/* 题库 */
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.chip{padding:7px 14px;min-height:0;border-radius:20px;background:var(--panel2);font-size:14px}
+.chip.on{background:var(--gold);color:#2a1b00}
+.mx{width:100%;border-collapse:collapse;font-size:14px;text-align:center}
+.mx td,.mx th{padding:6px 4px;border:1px solid var(--line)}
+.mx th{color:var(--dim);font-weight:600}
+.qi{padding:12px;border:2px solid var(--line);border-radius:14px;margin-bottom:8px;background:var(--panel)}
+.qi .qt{font-size:16px;line-height:1.45;margin:4px 0}
+.qi .qa{font-size:14px;color:#9bf2bf}
+.qi .bt{display:flex;gap:8px;margin-top:8px}
+.qi .bt button{min-height:38px;padding:6px 14px;font-size:14px}
+.fab{position:fixed;right:16px;bottom:calc(78px + env(safe-area-inset-bottom));z-index:9;width:60px;height:60px;border-radius:30px;font-size:34px;line-height:1;padding:0;box-shadow:0 4px 16px rgba(0,0,0,.5)}
+
+/* 记分 */
+.sc{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.sc:last-child{border:0}
+.sc .av{flex:none;width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;color:#1a1200}
+.sc .nm{font-size:18px;font-weight:800}
+.sc .bt{margin-left:auto;display:flex;gap:6px}
+.sc .bt button{min-height:36px;padding:4px 12px;font-size:14px}
+.hist{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.hist .p{margin-left:auto;font-weight:800;color:var(--gold)}
+.hist .x{flex:none;min-height:30px;padding:2px 10px;font-size:13px;background:transparent;border:1px solid var(--line);color:var(--dim)}
+.rs-win{color:#6dffa7}.rs-wrong{color:#ff8a8a}.rs-walk{color:#ffe9a8}
+
+/* 弹层 */
+#modal{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.72);display:none;align-items:flex-start;justify-content:center;overflow:auto;padding:14px}
+#modal.on{display:flex}
+#mbox{width:100%;max-width:640px;background:var(--panel);border:2px solid var(--gold);border-radius:18px;padding:16px;margin:auto 0}
+#toast{position:fixed;left:50%;top:60px;transform:translateX(-50%);z-index:40;max-width:90%;padding:10px 20px;border-radius:30px;background:#0a0e26;border:2px solid var(--gold);display:none;font-weight:700;text-align:center}
+#toast.bad{border-color:var(--bad);color:#ffb3b3}
+#login{position:fixed;inset:0;z-index:50;background:var(--bg);display:none;align-items:center;justify-content:center;padding:20px}
+#login .card{width:100%;max-width:380px}
+pre.mono{white-space:pre-wrap;word-break:break-all;font-size:13px;color:var(--dim);line-height:1.6}
+.radio{display:flex;align-items:center;gap:8px}
+.radio input[type=radio]{width:24px;height:24px;flex:none}
+.opr{display:flex;gap:8px;align-items:center;margin-top:8px}
+.opr .lt{flex:none;width:24px;font-weight:900;color:var(--gold)}
+</style>
+</head>
+<body>
+<div id="top"><b>主持人面板</b><span id="conn" class="off"><i></i><span id="connTxt">连接中</span></span></div>
+
+<div class="wrap">
+  <div id="pgPlay" class="pg on"></div>
+  <div id="pgBank" class="pg"></div>
+  <div id="pgScore" class="pg"></div>
+  <div id="pgData" class="pg"></div>
+</div>
+
+<nav>
+  <button data-t="Play" class="on">遥控</button>
+  <button data-t="Bank">题库</button>
+  <button data-t="Score">记分牌</button>
+  <button data-t="Data">数据</button>
+</nav>
+
+<div id="modal"><div id="mbox"></div></div>
+<div id="toast"></div>
+<div id="login"><div class="card"><h2>请输入主持人口令</h2><input id="pinIn" type="password" inputmode="numeric" autocomplete="off" placeholder="口令"><div style="height:12px"></div><button class="gold big" id="pinBtn">进入</button><div class="small" id="pinErr" style="margin-top:8px"></div></div></div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var CATS = ['文史', '理科', '通识', '二次元'];
+  var CATCLS = { '文史': 'c0', '理科': 'c1', '通识': 'c2', '二次元': 'c3' };
+  var LV = ['', '小学', '初中', '高中', '大学'];   // 学段标签
+  var dismissed = {};
+  window.dismissN = function (i) { dismissed[i] = true; renderPlay(); };
+  var L = 'ABCD';
+  var PIN = '';
+  try { PIN = sessionStorage.getItem('hostpin') || ''; } catch (e) { /* 忽略 */ }
+  var S = null, Q = null, SC = null, INFO = null;
+  var filter = { cat: '', level: 0, kw: '', flag: false };   // level 字段存的是学段 1~4，0=全部
+  var es = null, lastMsg = 0, busy = false;
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function fmt(ts) { var d = new Date(ts); return pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+  function toast(m, bad) {
+    var t = $('toast'); t.textContent = m; t.className = bad ? 'bad' : ''; t.style.display = 'block';
+    clearTimeout(toast.h); toast.h = setTimeout(function () { t.style.display = 'none'; }, bad ? 3800 : 1800);
+  }
+
+  /* ───── 请求 ───── */
+  function api(method, url, body) {
+    var opt = { method: method, headers: { 'x-host-pin': PIN }, cache: 'no-store' };
+    if (body !== undefined) { opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
+    return fetch(url, opt).then(function (r) {
+      if (r.status === 401) { showLogin(); throw new Error('需要口令'); }
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!r.ok) { var e = new Error(j.error || ('出错了（' + r.status + '）')); e.data = j; throw e; }
+        return j;
+      });
+    });
+  }
+  function showLogin(msg) { $('login').style.display = 'flex'; $('pinErr').textContent = msg || ''; setTimeout(function () { $('pinIn').focus(); }, 50); }
+  $('pinBtn').onclick = function () {
+    PIN = $('pinIn').value;
+    api('GET', '/api/check').then(function () {
+      try { sessionStorage.setItem('hostpin', PIN); } catch (e) { /* 忽略 */ }
+      $('login').style.display = 'none'; boot();
+    }).catch(function () { $('pinErr').textContent = '口令不对'; });
+  };
+  $('pinIn').onkeydown = function (e) { if (e.key === 'Enter') $('pinBtn').click(); };
+
+  function act(a) {
+    if (busy) return;
+    busy = true;
+    api('POST', '/api/action', a).then(function (j) { S = j.state; renderPlay(); })
+      .catch(function (e) { toast(e.message, true); })
+      .then(function () { busy = false; });
+  }
+
+  /* ───── 标签页 ───── */
+  var navBtns = document.querySelectorAll('nav button');
+  Array.prototype.forEach.call(navBtns, function (b) {
+    b.onclick = function () {
+      Array.prototype.forEach.call(navBtns, function (x) { x.classList.toggle('on', x === b); });
+      ['Play', 'Bank', 'Score', 'Data'].forEach(function (t) { $('pg' + t).classList.toggle('on', t === b.getAttribute('data-t')); });
+      var t = b.getAttribute('data-t');
+      if (t === 'Bank') loadBank(); if (t === 'Score') loadScore(); if (t === 'Data') loadData();
+      window.scrollTo(0, 0);
+    };
+  });
+
+  /* ═════════ 遥控 ═════════ */
+  function ladderMini() {
+    var h = '<div class="lad">';
+    for (var i = 0; i < 12; i++) {
+      var c = i === S.idx ? 'c' : (i < S.idx || (S.phase === 'result' && S.lastCorrect && i === S.idx)) ? 'd' : '';
+      if (S.safe.indexOf(i) >= 0) c += ' s';
+      h += '<span class="' + c + '">' + (i + 1) + '·' + S.ladder[i] + '</span>';
+    }
+    return h + '</div>';
+  }
+
+  function renderPlay() {
+    var el = $('pgPlay');
+    if (!S) { el.innerHTML = '<div class="card">连接中……</div>'; return; }
+    var h = '';
+    (S.notices || []).forEach(function (n, i) {
+      if (dismissed[i]) return;
+      h += '<div class="card" style="border-color:' + (n.level === 'error' ? '#ff5252' : '#4fc3f7') + ';margin-bottom:10px"><div style="font-size:14px;line-height:1.5">' + (n.level === 'error' ? '⚠️ ' : 'ℹ️ ') + esc(n.text) + '</div><div class="bar"><button class="ghost" onclick="dismissN(' + i + ')">知道了</button></div></div>';
+    });
+    var tvN = S.clients ? S.clients.tv : 0;
+    h += '<div class="small" style="margin-bottom:8px">' + (tvN ? '电视已连接 ✓' : '<span class="warn">电视还没有连上：请在电视上打开游戏地址（见「数据」页）</span>') + '　爸爸累计已发出 ¥' + S.totalPaid + '</div>';
+
+    if (S.phase === 'lobby') {
+      h += '<h2>请选择上场的选手</h2><div class="pl">' + S.players.map(function (p) {
+        return '<button class="pbtn" data-start="' + esc(p.id) + '"><div class="av" style="background:' + esc(p.color) + '">' + esc(p.avatar) + '</div><div class="n">' + esc(p.name) + '</div><div class="s">' + LV[p.stage] + ' · 最高 ¥' + p.best + ' · ' + p.games + ' 局</div></button>';
+      }).join('') + '</div>';
+      h += '<div class="card" style="margin-top:14px"><div class="small">选好人后电视会立刻进入第 1 题。选手口头回答，你在这里点选项、再「锁定」即可。</div></div>';
+      h += muteBtn();
+      el.innerHTML = h; bindPlay(); return;
+    }
+
+    var q = S.question, p = S.player, ph = S.phase;
+    h += '<div class="card"><div class="qh"><b style="font-size:18px">' + esc(p.name) + '</b><span class="tag ' + CATCLS[q.cat] + '">' + esc(q.cat) + '</span><span class="tag lv">题：' + LV[q.stage] + '</span><span class="tag lv">选手：' + LV[p.stage] + '</span>' +
+      (ph !== 'gameover' ? '<span>第 ' + (S.idx + 1) + ' 题 · ¥' + S.ladder[S.idx] + '</span>' : '') + '</div>';
+
+    if (ph === 'gameover') {
+      var o = S.outcome, t = { win: '通关！', walk: '见好就收', wrong: '答错止步' }[o.result];
+      h += '<div class="info" style="font-size:20px"><b>' + esc(p.name) + '：' + t + '</b><br>本局奖金 <b style="color:var(--gold);font-size:28px">¥' + o.prize + '</b>（答对 ' + o.reached + ' 题）' + (o.newRecord ? '　🏆 刷新个人纪录' : '') + '<br><span class="small">这笔钱要从爸爸口袋里掏哦。</span></div>';
+      h += '<div class="bar"><button class="gold big" data-act="again">' + esc(p.name) + ' 再来一局</button><button class="ghost big" data-act="lobby">回到大厅换人</button></div></div>';
+      h += muteBtn(); el.innerHTML = h; bindPlay(); return;
+    }
+
+    h += '<div class="qq">' + esc(q.q) + '</div><div class="opts">';
+    for (var i = 0; i < 4; i++) {
+      var c = 'op', gone = (S.removed || []).indexOf(i) >= 0;
+      if (i === q.answer) c += ' ans';
+      if (gone) c += ' gone';
+      if (ph === 'question' && S.selected === i) c += ' sel';
+      if (ph === 'result') { if (i === q.answer) c += ' rt'; else if (i === S.selected) c += ' wr'; }
+      h += '<button class="' + c + '" data-sel="' + i + '"' + (ph === 'question' && !gone ? '' : ' disabled') + '><span class="lt">' + L[i] + '</span><span>' + esc(q.options[i]) + '</span>' + (i === q.answer ? '<span class="ck">✓ 正确答案</span>' : '') + '</button>';
+    }
+    h += '</div>';
+    if (ph === 'result' || ph === 'revealing') h += '';
+    if (q.explain) h += '<div class="expl"><b>解析：</b>' + esc(q.explain) + '</div>';
+    h += '</div>';
+
+    h += '<div class="card">';
+    if (ph === 'question') {
+      var sel = S.selected;
+      h += '<button class="gold big" data-act="confirm"' + (sel == null ? ' disabled' : '') + '>' + (sel == null ? '先点上面的选项' : '锁定答案 ' + L[sel]) + '</button>';
+      h += '<div class="bar"><button class="blue" data-act="fifty"' + (S.lifelines.fifty && sel == null ? '' : ' disabled') + '>50:50 ' + (S.lifelines.fifty ? '' : '（已用）') + '</button>' +
+        '<button class="blue" data-act="swap"' + (S.lifelines.swap && sel == null ? '' : ' disabled') + '>换题 ' + (S.lifelines.swap ? '' : '（已用）') + '</button>' +
+        '<button class="ghost" data-act="unselect"' + (sel == null ? ' disabled' : '') + '>取消选择</button></div>';
+      h += '<div class="bar"><button class="green" data-act="walk">见好就收 · 带走 ¥' + S.walkPrize + '</button></div>';
+      if (sel != null && (S.lifelines.fifty || S.lifelines.swap)) h += '<div class="small" style="margin-top:6px">想用求助？先点「取消选择」。</div>';
+    } else if (ph === 'revealing') {
+      h += '<div class="info">正在揭晓……（约 4 秒后自动出结果）</div>';
+    } else if (ph === 'result') {
+      if (S.lastCorrect) {
+        if (S.idx >= 11) h += '<div class="info">🎉 全部答对！</div><button class="gold big" data-act="next">领取 ¥' + S.ladder[11] + ' 大奖</button>';
+        else h += '<div class="info">答对了！当前 <b>¥' + S.ladder[S.idx] + '</b>。接着答下一题，答错将退回 ¥' + (S.idx + 1 > 8 ? S.ladder[8] : S.idx + 1 > 4 ? S.ladder[4] : 0) + '。</div>' +
+          '<button class="gold big" data-act="next">下一题</button><div class="bar"><button class="green" data-act="walk">见好就收 · 带走 ¥' + S.ladder[S.idx] + '</button></div>';
+      } else {
+        h += '<div class="info">答错了。退回 <b>¥' + S.fallback + '</b>。先在电视上讲完解析，再点结算。</div><button class="red big" data-act="finish">结算本局</button>';
+      }
+    }
+    h += '<div class="small" style="margin-top:10px">奖金阶梯（框线为保险线）</div>' + ladderMini() + '</div>';
+    h += '<div class="card"><div class="bar" style="margin:0"><button class="ghost" data-act="abort">中止本局（不记录）</button></div></div>';
+    h += muteBtn();
+    el.innerHTML = h; bindPlay();
+  }
+  function muteBtn() { return '<div class="card"><button class="ghost" data-act="mute">电视音效：' + (S.muted ? '已静音（点击开启）' : '开启中（点击静音）') + '</button></div>'; }
+  function bindPlay() {
+    var el = $('pgPlay');
+    Array.prototype.forEach.call(el.querySelectorAll('[data-start]'), function (b) { b.onclick = function () { act({ type: 'start', playerId: b.getAttribute('data-start') }); }; });
+    Array.prototype.forEach.call(el.querySelectorAll('[data-sel]'), function (b) { b.onclick = function () { act({ type: 'select', i: Number(b.getAttribute('data-sel')) }); }; });
+    Array.prototype.forEach.call(el.querySelectorAll('[data-act]'), function (b) {
+      b.onclick = function () {
+        var t = b.getAttribute('data-act');
+        if (t === 'abort' && !confirm('确定中止本局吗？本局不会记入记分牌。')) return;
+        if (t === 'walk' && !confirm('确定见好就收，带走 ' + (S.phase === 'result' ? S.ladder[S.idx] : S.walkPrize) + ' 元吗？')) return;
+        if (t === 'mute') return act({ type: 'mute', value: !S.muted });
+        act({ type: t });
+      };
+    });
+  }
+
+  /* ═════════ 题库 ═════════ */
+  function loadBank() {
+    api('GET', '/api/questions').then(function (j) { Q = j.questions; renderBank(); }).catch(function (e) { toast(e.message, true); });
+  }
+  function renderBank() {
+    var el = $('pgBank');
+    if (!Q) { el.innerHTML = '<div class="card">加载中……</div>'; return; }
+    var cnt = {}; Q.forEach(function (q) { var k = q.cat + q.stage; cnt[k] = (cnt[k] || 0) + 1; });
+    var h = '<h2>题库（共 ' + Q.length + ' 题）</h2><div class="card"><table class="mx"><tr><th></th>' + [1, 2, 3, 4].map(function (l) { return '<th>' + LV[l] + '</th>'; }).join('') + '</tr>';
+    CATS.forEach(function (c) {
+      h += '<tr><th>' + c + '</th>' + [1, 2, 3, 4].map(function (l) { var n = cnt[c + l] || 0; return '<td' + (n < 6 ? ' class="warn"' : '') + '>' + n + '</td>'; }).join('') + '</tr>';
+    });
+    h += '</table><div class="small" style="margin-top:6px">每局按选手的学段取三档题（学段 -1 / 学段 / 学段 +1），每档每类各抽 1 题。两端学段的选手有两档会用到同一学段，建议每格不少于 8 题；低于 6 题的格子标橙色。</div></div>';
+
+    h += '<div class="chips" id="fc">' + ['全部'].concat(CATS).map(function (c) { return '<button class="chip' + ((c === '全部' && !filter.cat) || c === filter.cat ? ' on' : '') + '" data-c="' + (c === '全部' ? '' : c) + '">' + c + '</button>'; }).join('') + '</div>';
+    h += '<div class="chips" id="fl">' + ['全部学段', '小学', '初中', '高中', '大学'].map(function (c, i) { return '<button class="chip' + (filter.level === i ? ' on' : '') + '" data-l="' + i + '">' + c + '</button>'; }).join('') +
+      '<button class="chip' + (filter.flag ? ' on' : '') + '" id="ff">只看待核对</button></div>';
+    h += '<input id="kw" placeholder="搜索题目、选项、解析里的文字" value="' + esc(filter.kw) + '"><div style="height:10px"></div>';
+    var list = Q.filter(function (q) {
+      if (filter.cat && q.cat !== filter.cat) return false;
+      if (filter.level && q.stage !== filter.level) return false;
+      if (filter.flag && !q.flag) return false;
+      if (filter.kw) { var s = (q.q + q.options.join('') + (q.explain || '')); if (s.indexOf(filter.kw) < 0) return false; }
+      return true;
+    });
+    h += '<div class="small" style="margin-bottom:8px">符合条件 ' + list.length + ' 题</div><div id="ql">';
+    list.forEach(function (q) {
+      h += '<div class="qi"><span class="tag ' + CATCLS[q.cat] + '">' + esc(q.cat) + '</span><span class="tag lv">' + LV[q.stage] + '</span>' + (q.flag ? '<span class="tag" style="background:#ffb300">待核对</span>' : '') +
+        '<div class="qt">' + esc(q.q) + '</div><div class="qa">答案 ' + L[q.answer] + '：' + esc(q.options[q.answer]) + '</div>' +
+        '<div class="small">' + q.options.map(function (o, i) { return L[i] + '.' + esc(o); }).join('　') + '</div>' +
+        '<div class="bt"><button data-e="' + esc(q.id) + '">编辑</button><button class="red" data-d="' + esc(q.id) + '">删除</button></div></div>';
+    });
+    h += '</div><button class="fab gold" id="addQ">＋</button>';
+    el.innerHTML = h;
+    Array.prototype.forEach.call(el.querySelectorAll('#fc .chip'), function (b) { b.onclick = function () { filter.cat = b.getAttribute('data-c'); renderBank(); }; });
+    Array.prototype.forEach.call(el.querySelectorAll('#fl .chip[data-l]'), function (b) { b.onclick = function () { filter.level = Number(b.getAttribute('data-l')); renderBank(); }; });
+    $('ff').onclick = function () { filter.flag = !filter.flag; renderBank(); };
+    var kw = $('kw');
+    kw.oninput = function () {
+      filter.kw = kw.value.trim();
+      clearTimeout(kw.h); kw.h = setTimeout(function () { renderBank(); var k2 = $('kw'); k2.focus(); k2.setSelectionRange(k2.value.length, k2.value.length); }, 350);
+    };
+    $('addQ').onclick = function () { editQ(null); };
+    Array.prototype.forEach.call(el.querySelectorAll('[data-e]'), function (b) { b.onclick = function () { editQ(b.getAttribute('data-e')); }; });
+    Array.prototype.forEach.call(el.querySelectorAll('[data-d]'), function (b) {
+      b.onclick = function () {
+        var id = b.getAttribute('data-d');
+        var q = Q.filter(function (x) { return x.id === id; })[0];
+        if (!q || !confirm('确定删除这道题吗？\n\n' + q.q)) return;
+        api('DELETE', '/api/questions/' + encodeURIComponent(id)).then(function () { toast('已删除'); loadBank(); }).catch(function (e) { toast(e.message, true); });
+      };
+    });
+  }
+
+  function openModal(html) { $('mbox').innerHTML = html; $('modal').classList.add('on'); }
+  function closeModal() { $('modal').classList.remove('on'); }
+  $('modal').addEventListener('mousedown', function (e) { if (e.target === $('modal')) closeModal(); });
+
+  function editQ(id) {
+    var q = id ? Q.filter(function (x) { return x.id === id; })[0] : { cat: filter.cat || '文史', stage: filter.level || 2, q: '', options: ['', '', '', ''], answer: 0, explain: '', flag: false };
+    var h = '<h2>' + (id ? '编辑题目' : '新增题目') + '</h2><div class="row"><div><label>分类</label><select id="eCat">' + CATS.map(function (c) { return '<option' + (c === q.cat ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></div>' +
+      '<div><label>学段（谁能答对）</label><select id="eLv">' + [1, 2, 3, 4].map(function (l) { return '<option value="' + l + '"' + (l === q.stage ? ' selected' : '') + '>' + LV[l] + '</option>'; }).join('') + '</select></div></div>' +
+      '<label>题目</label><textarea id="eQ" maxlength="200">' + esc(q.q) + '</textarea><label>选项（点左边圆点选择正确答案）</label>';
+    for (var i = 0; i < 4; i++) h += '<div class="opr"><input type="radio" name="eA" value="' + i + '"' + (i === q.answer ? ' checked' : '') + ' style="width:24px;height:24px;flex:none"><span class="lt">' + L[i] + '</span><input class="eo" maxlength="60" value="' + esc(q.options[i]) + '"></div>';
+    h += '<label>解析（答完后电视上显示，建议两三句话）</label><textarea id="eX" maxlength="500">' + esc(q.explain || '') + '</textarea>' +
+      '<label class="radio"><input type="checkbox" id="eF"' + (q.flag ? ' checked' : '') + ' style="width:22px;height:22px"> 标记为「待核对」（自己没把握的题）</label>' +
+      '<div class="bar"><button class="ghost" id="eNo">取消</button><button class="gold" id="eOk">保存</button></div>';
+    openModal(h);
+    $('eNo').onclick = closeModal;
+    $('eOk').onclick = function () {
+      var opts = Array.prototype.map.call(document.querySelectorAll('.eo'), function (x) { return x.value.trim(); });
+      var ans = document.querySelector('input[name=eA]:checked');
+      var body = { cat: $('eCat').value, stage: Number($('eLv').value), q: $('eQ').value.trim(), options: opts, answer: ans ? Number(ans.value) : -1, explain: $('eX').value.trim(), flag: $('eF').checked };
+      api(id ? 'PUT' : 'POST', id ? '/api/questions/' + encodeURIComponent(id) : '/api/questions', body)
+        .then(function () { closeModal(); toast('已保存，立即生效'); loadBank(); }).catch(function (e) { toast(e.message, true); });
+    };
+  }
+
+  /* ═════════ 记分牌 ═════════ */
+  function loadScore() {
+    api('GET', '/api/scores').then(function (j) { SC = j; renderScore(); }).catch(function (e) { toast(e.message, true); });
+  }
+  function renderScore() {
+    var el = $('pgScore');
+    if (!SC) { el.innerHTML = '<div class="card">加载中……</div>'; return; }
+    var h = '<h2>记分牌</h2><div class="card">';
+    SC.players.forEach(function (p) {
+      h += '<div class="sc"><div class="av" style="background:' + esc(p.color) + '">' + esc(p.avatar) + '</div><div><div class="nm">' + esc(p.name) + ' <span class="tag lv" style="margin-left:4px">' + LV[p.stage] + '</span></div><div class="small">最高 <b style="color:var(--gold)">¥' + p.best + '</b> · ' + p.games + ' 局 · 通关 ' + p.wins + ' · 累计赢 ¥' + p.total + '</div></div>' +
+        '<div class="bt"><button data-pe="' + esc(p.id) + '">改</button><button class="red" data-pd="' + esc(p.id) + '">删</button></div></div>';
+    });
+    h += '<div class="bar"><button class="blue" id="addP">＋ 添加选手</button></div></div>';
+    h += '<div class="card"><b>金主总账</b>：爸爸累计已发出 <b style="color:var(--gold);font-size:22px">¥' + SC.totalPaid + '</b>（共 ' + SC.historyCount + ' 局）</div>';
+    h += '<h2>输赢记录</h2><div class="card">';
+    if (!SC.history.length) h += '<div class="small">还没有记录。</div>';
+    SC.history.forEach(function (r) {
+      var t = { win: '通关', walk: '收手', wrong: '答错' }[r.result];
+      h += '<div class="hist"><span class="small">' + fmt(r.ts) + '</span><b>' + esc(r.playerName) + '</b><span class="rs-' + r.result + '">' + t + (r.result === 'wrong' ? '(第' + r.wrongAt + '题)' : '') + '</span><span class="p">¥' + r.prize + '</span><button class="x" data-hd="' + esc(r.id) + '">删</button></div>';
+    });
+    if (SC.historyCount > SC.history.length) h += '<div class="small" style="margin-top:8px">只显示最近 ' + SC.history.length + ' 条，全部记录请用「数据」页导出。</div>';
+    h += '</div><div class="card"><button class="red" id="clrH">清空全部记录</button><div class="small" style="margin-top:6px">只清记录，不动题库和选手。清空前会自动备份。</div></div>';
+    el.innerHTML = h;
+    $('addP').onclick = function () { editP(null); };
+    Array.prototype.forEach.call(el.querySelectorAll('[data-pe]'), function (b) { b.onclick = function () { editP(b.getAttribute('data-pe')); }; });
+    Array.prototype.forEach.call(el.querySelectorAll('[data-pd]'), function (b) {
+      b.onclick = function () {
+        var id = b.getAttribute('data-pd'), p = SC.players.filter(function (x) { return x.id === id; })[0];
+        if (!confirm('确定删除选手「' + p.name + '」吗？他/她的历史记录会保留在记录里。')) return;
+        api('DELETE', '/api/players/' + encodeURIComponent(id)).then(function () { toast('已删除'); loadScore(); }).catch(function (e) { toast(e.message, true); });
+      };
+    });
+    Array.prototype.forEach.call(el.querySelectorAll('[data-hd]'), function (b) {
+      b.onclick = function () {
+        if (!confirm('删除这条记录？（最高奖金会跟着重新计算）')) return;
+        api('DELETE', '/api/history/' + encodeURIComponent(b.getAttribute('data-hd'))).then(function () { loadScore(); }).catch(function (e) { toast(e.message, true); });
+      };
+    });
+    $('clrH').onclick = function () {
+      if (!confirm('确定清空所有输赢记录和最高纪录吗？')) return;
+      if (!confirm('再确认一次：清空后只能从自动备份里找回。')) return;
+      api('POST', '/api/history/clear', {}).then(function () { toast('已清空'); loadScore(); }).catch(function (e) { toast(e.message, true); });
+    };
+  }
+  function editP(id) {
+    var p = id ? SC.players.filter(function (x) { return x.id === id; })[0] : { name: '', avatar: '', color: '', stage: 3 };
+    openModal('<h2>' + (id ? '修改选手' : '添加选手') + '</h2><label>名字（最多 12 字）</label><input id="pN" maxlength="12" value="' + esc(p.name) + '">' +
+      '<label>头像字（1~2 个字或表情，留空取名字第一个字）</label><input id="pA" maxlength="4" value="' + esc(p.avatar) + '">' +
+      '<label>选手学段（决定抽哪个难度的题）</label><select id="pS">' + [1, 2, 3, 4].map(function (l) { return '<option value="' + l + '"' + (l === p.stage ? ' selected' : '') + '>' + LV[l] + '</option>'; }).join('') + '</select>' +
+      '<div class="small" style="margin-top:6px">每局的三档题目依次取：学段-1、学段、学段+1。例如选「初中」，前 4 题偏小学、中间 4 题初中、最后 4 题偏高中。</div>' +
+      '<div class="bar"><button class="ghost" id="pNo">取消</button><button class="gold" id="pOk">保存</button></div>');
+    $('pNo').onclick = closeModal;
+    $('pOk').onclick = function () {
+      var body = { name: $('pN').value, avatar: $('pA').value, color: p.color, stage: Number($('pS').value) };
+      api(id ? 'PUT' : 'POST', id ? '/api/players/' + encodeURIComponent(id) : '/api/players', body)
+        .then(function () { closeModal(); toast('已保存'); loadScore(); }).catch(function (e) { toast(e.message, true); });
+    };
+  }
+
+  /* ═════════ 数据 ═════════ */
+  function loadData() {
+    api('GET', '/api/info').then(function (j) { INFO = j; renderData(); }).catch(function (e) { toast(e.message, true); });
+  }
+  function renderData() {
+    var el = $('pgData'), h = '<h2>数据与设置</h2>';
+    h += '<div class="card"><b>电视打开这个地址</b><pre class="mono">' + (INFO.lan.length ? INFO.lan.map(function (a) { return 'http://' + a.address + ':' + INFO.port + '/   （' + esc(a.name) + '）'; }).join('\n') : '没有检测到局域网地址，请确认电脑已连 Wi-Fi') + '</pre>' +
+      '<div class="small">主持人面板地址是在后面加 /host。如果有多个地址，试试以 192.168 开头的那个。</div></div>';
+    h += '<div class="card"><b>导出备份</b><div class="small" style="margin:6px 0 10px">包含全部题库、选手、记分牌和输赢记录，是一个 JSON 文件。</div><button class="gold big" id="exp">导出备份文件</button></div>';
+    h += '<div class="card"><b>导入备份</b><div class="small" style="margin:6px 0 10px">选择之前导出的 JSON 文件。导入前会先自动备份当前数据。</div><input type="file" id="impF" accept=".json,application/json"><div id="impInfo" class="small" style="margin-top:8px"></div></div>';
+    h += '<div class="card"><b>恢复默认题库</b><div class="small" style="margin:6px 0 10px">把题库还原成最初的 151 题（你新增和修改的题会被替换，不影响记分牌；操作前自动备份）。</div><button class="red" id="rst">恢复默认题库</button></div>';
+    h += '<div class="card small">数据保存在电脑上的：<br>' + esc(INFO.dataDir) + '<br>里面的 questions.json、scores.json 就是全部数据，拷走这个文件夹也是备份。每次修改前，系统会在 backups 子目录里自动留一份带时间的备份。' + (INFO.pin ? '<br>主持人口令：已开启。' : '<br>主持人口令：未设置（想设置就在 config.json 里填 hostPin）。') + '</div>';
+    el.innerHTML = h;
+    $('exp').onclick = function () {
+      fetch('/api/export', { headers: { 'x-host-pin': PIN }, cache: 'no-store' }).then(function (r) {
+        if (!r.ok) throw new Error('导出失败'); return r.blob();
+      }).then(function (b) {
+        var d = new Date(), n = '百万富翁备份-' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + '.json';
+        var a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = n; document.body.appendChild(a); a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+        toast('已导出');
+      }).catch(function (e) { toast(e.message, true); });
+    };
+    $('rst').onclick = function () {
+      if (!confirm('确定把题库恢复成默认的 100 题吗？')) return;
+      api('POST', '/api/questions/reset', {}).then(function (j) { toast('已恢复 ' + j.count + ' 题'); Q = null; }).catch(function (e) { toast(e.message, true); });
+    };
+    $('impF').onchange = function () {
+      var f = this.files && this.files[0]; if (!f) return;
+      var rd = new FileReader();
+      rd.onload = function () {
+        var data;
+        try { data = JSON.parse(rd.result); } catch (e) { $('impInfo').innerHTML = '<span class="warn">这个文件不是有效的 JSON。</span>'; return; }
+        var nq = Array.isArray(data.questions) ? data.questions.length : 0, np = Array.isArray(data.players) ? data.players.length : 0, nh = Array.isArray(data.history) ? data.history.length : 0;
+        if (!nq && !np && !nh) { $('impInfo').innerHTML = '<span class="warn">文件里没有找到题库、选手或记录。</span>'; return; }
+        openModal('<h2>导入备份</h2><div class="info">文件「' + esc(f.name) + '」包含：<br>题目 ' + nq + ' 道，选手 ' + np + ' 位，输赢记录 ' + nh + ' 条</div>' +
+          '<div class="small">合并：只补充本机没有的题目/记录，不会覆盖已有数据。<br>覆盖：用文件里的内容整体替换本机对应的数据。</div>' +
+          '<div class="bar"><button class="ghost" id="iNo">取消</button><button class="blue" id="iM">合并</button><button class="red" id="iR">覆盖</button></div>');
+        $('iNo').onclick = closeModal;
+        function go(mode) {
+          if (mode === 'replace' && !confirm('覆盖会替换本机对应的数据（导入前已自动备份）。继续吗？')) return;
+          api('POST', '/api/import', { mode: mode, data: data }).then(function (j) {
+            closeModal(); var s = j.summary, t = [];
+            if (s.questions !== undefined) t.push('题目 ' + s.questions); if (s.players !== undefined) t.push('选手 ' + s.players); if (s.history !== undefined) t.push('记录 ' + s.history);
+            toast('导入完成：' + t.join('，')); Q = null; $('impF').value = ''; $('impInfo').textContent = '';
+          }).catch(function (e) { closeModal(); alert(e.message); });
+        }
+        $('iM').onclick = function () { go('merge'); }; $('iR').onclick = function () { go('replace'); };
+      };
+      rd.readAsText(f);
+    };
+  }
+
+  /* ═════════ 连接 ═════════ */
+  function setConn(on) { var c = $('conn'); c.className = on ? 'on' : 'off'; $('connTxt').textContent = on ? '已连接' : '重连中'; }
+  function connect() {
+    try { if (es) es.close(); } catch (e) { /* 忽略 */ }
+    es = new EventSource('/events?role=host&pin=' + encodeURIComponent(PIN));
+    es.onopen = function () { setConn(true); lastMsg = Date.now(); };
+    es.onmessage = function (e) {
+      lastMsg = Date.now(); setConn(true);
+      try { S = JSON.parse(e.data); } catch (err) { return; }
+      if (!document.activeElement || document.activeElement.tagName !== 'INPUT') { if ($('pgPlay').classList.contains('on')) renderPlay(); }
+    };
+    es.onerror = function () { setConn(false); if (es.readyState === 2) setTimeout(connect, 2000); };
+  }
+  function boot() {
+    api('GET', '/api/state?role=host').then(function (j) { S = j; renderPlay(); connect(); }).catch(function () { /* 登录框已显示 */ });
+  }
+  setInterval(function () {
+    if (!S || Date.now() - lastMsg < 8000) return;
+    api('GET', '/api/state?role=host').then(function (j) { S = j; lastMsg = Date.now(); setConn(true); renderPlay(); }).catch(function () { setConn(false); });
+  }, 5000);
+
+  api('GET', '/api/check').then(boot).catch(function () { /* 需要口令时会显示登录框 */ });
+})();
+</script>
+</body>
+</html>

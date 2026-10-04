@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>家庭百万富翁</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;background:#030612;overflow:hidden;cursor:none;user-select:none;-webkit-user-select:none}
+body{font-family:"Microsoft YaHei","PingFang SC","Noto Sans CJK SC","Noto Sans SC","Source Han Sans SC","WenQuanYi Micro Hei",sans-serif;color:#fff}
+
+/* 固定 1920×1080 的舞台，整体缩放适配任何屏幕 */
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;overflow:hidden;
+  background:radial-gradient(ellipse at 50% 15%,#1d3f94 0%,#0b1a52 45%,#040a24 100%)}
+#stage::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-conic-gradient(from 0deg at 50% 120%,rgba(255,255,255,.035) 0deg 6deg,transparent 6deg 12deg)}
+#fx{position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:20}
+.screen{position:absolute;inset:0}
+.fade{animation:fadein .6s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* ───── 大厅 ───── */
+.lobby{display:flex;flex-direction:column;align-items:center;padding:70px 80px 40px}
+.brand{font-size:132px;font-weight:900;letter-spacing:10px;line-height:1.1;color:#ffd54a;
+  background:linear-gradient(180deg,#fff6c9 0%,#ffd54a 45%,#e59a00 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 6px 0 rgba(120,70,0,.55))}
+.rules{margin-top:18px;font-size:36px;color:#b8c8ff;letter-spacing:2px}
+.rules b{color:#ffd54a;font-weight:700}
+.cards{margin-top:48px;display:flex;gap:34px;justify-content:center;flex-wrap:wrap;width:100%}
+.card{position:relative;width:420px;padding:36px 20px 30px;border-radius:36px;text-align:center;
+  background:linear-gradient(180deg,rgba(24,52,128,.92),rgba(8,20,64,.92));border:4px solid #c9a227;box-shadow:0 14px 40px rgba(0,0,0,.45)}
+.card .av{width:150px;height:150px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;
+  font-size:84px;font-weight:900;color:#1a1200;border:5px solid rgba(255,255,255,.85)}
+.card .nm{font-size:58px;font-weight:800}
+.card .lb{margin-top:16px;font-size:28px;color:#9fb4f2;letter-spacing:4px}
+.card .bs{font-size:96px;font-weight:900;color:#ffd54a;line-height:1.1}
+.card .st{margin-top:12px;font-size:28px;color:#c3d0ff}
+.card .st b{color:#fff}
+.card .crown{position:absolute;top:-26px;left:50%;transform:translateX(-50%);padding:6px 28px;border-radius:30px;font-size:28px;font-weight:800;color:#3b2a00;
+  background:linear-gradient(#ffe27a,#f2a900);border:3px solid #fff3c4;white-space:nowrap}
+.cards.many .card{width:290px;padding:30px 10px 24px}
+.cards.many .card .av{width:110px;height:110px;font-size:60px}
+.cards.many .card .nm{font-size:44px}
+.cards.many .card .bs{font-size:70px}
+.cards.many .card .st{font-size:22px}
+.foot{margin-top:auto;display:flex;gap:60px;align-items:center;justify-content:center;font-size:32px;color:#b8c8ff;width:100%;padding-top:20px}
+.foot b{color:#ffd54a;font-size:42px}
+.foot .rc{font-size:28px;color:#9fb4f2}
+.wait{margin-top:34px;font-size:34px;color:#ffd54a;letter-spacing:6px;animation:pulse 2.2s infinite}
+@keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+
+/* ───── 答题 ───── */
+.game{display:flex;gap:40px;padding:40px 50px 40px 60px}
+.main{flex:1;display:flex;flex-direction:column;gap:24px;min-width:0}
+.top{height:76px;display:flex;align-items:center;gap:26px}
+.who{display:flex;align-items:center;gap:18px;font-size:46px;font-weight:800}
+.who .av{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:900;color:#1a1200;border:3px solid rgba(255,255,255,.85)}
+.meta{display:flex;align-items:center;gap:14px;font-size:34px;color:#cfd9ff;margin-left:8px}
+.meta .prize{color:#ffd54a;font-weight:800;margin-left:6px}
+.tag{padding:4px 20px;border-radius:30px;font-size:30px;font-weight:700;color:#10131f}
+.c0{background:#ffb74d}.c1{background:#4fc3f7}.c2{background:#81c784}.c3{background:#f48fb1}
+.lv{background:#e0e6ff;color:#1b2a6b}
+.helps{margin-left:auto;display:flex;gap:18px}
+.help{position:relative;width:96px;height:76px;border-radius:40px;border:3px solid #ffd54a;display:flex;align-items:center;justify-content:center;
+  font-size:28px;font-weight:800;color:#ffd54a;background:rgba(10,24,80,.8)}
+.help.used{opacity:.32;filter:grayscale(1)}
+.help.used::after{content:"";position:absolute;left:6%;right:6%;top:50%;height:6px;margin-top:-3px;background:#ff3d3d;transform:rotate(-24deg);border-radius:3px}
+.qbox{flex:1;min-height:150px;overflow:hidden;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px 70px;border-radius:40px;
+  background:linear-gradient(180deg,rgba(20,46,120,.95),rgba(6,16,56,.95));border:4px solid #c9a227;box-shadow:0 10px 30px rgba(0,0,0,.4),inset 0 0 40px rgba(80,120,255,.18)}
+.qtext{font-size:56px;font-weight:700;line-height:1.35}
+.qtext.m{font-size:48px}.qtext.l{font-size:42px}.qtext.xl{font-size:36px}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:24px 30px}
+.opt{height:138px;display:flex;align-items:center;padding:0 52px;border-radius:70px;border:4px solid #c9a227;font-size:46px;font-weight:600;line-height:1.15;
+  background:linear-gradient(180deg,#123079,#071848);box-shadow:0 6px 18px rgba(0,0,0,.4);transition:background .25s}
+.opt .lt{flex:none;width:68px;font-size:50px;font-weight:900;color:#ffd54a}
+.opt .tx{flex:1;min-width:0}
+.opt.s2{font-size:38px}.opt.s3{font-size:31px}
+.opt.sel{background:linear-gradient(180deg,#ffc107,#f57c00);color:#1b1100;border-color:#fff3c4}
+.opt.sel .lt{color:#1b1100}
+.opt.lock{animation:blink .45s infinite alternate}
+@keyframes blink{from{filter:brightness(1)}to{filter:brightness(1.45)}}
+.opt.right{background:linear-gradient(180deg,#35d27a,#168a4b);border-color:#c8ffdf;color:#fff;animation:flash .5s 4 alternate}
+.opt.right .lt{color:#fff}
+@keyframes flash{from{filter:brightness(1)}to{filter:brightness(1.6)}}
+.opt.wrong{background:linear-gradient(180deg,#ef5350,#a31515);border-color:#ffc9c9;color:#fff}
+.opt.wrong .lt{color:#fff}
+.opt.dim{opacity:.45}
+.opt.gone{opacity:.12}
+.opt.gone .tx{visibility:hidden}
+
+.status{flex:none;min-height:200px;max-height:400px;border-radius:30px;display:flex;align-items:center;padding:10px 44px;gap:36px;background:rgba(8,18,60,.75);border:3px solid rgba(160,185,255,.35)}
+.status .big{font-size:50px;font-weight:800;width:100%;text-align:center}
+.status .big.o{color:#ffb300}
+.status .big.d{color:#9fb4f2;font-size:40px;font-weight:600;letter-spacing:4px}
+.dots::after{content:"";animation:dots 1.2s steps(4,end) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.status.res.good{border-color:#42d17f;background:rgba(14,70,44,.7)}
+.status.res.bad{border-color:#ff6b6b;background:rgba(80,18,24,.7)}
+.verdict{flex:none;width:400px;text-align:center}
+.verdict .v1{font-size:62px;font-weight:900}
+.good .v1{color:#6dffa7}.bad .v1{color:#ff8a8a}
+.verdict .v2{margin-top:6px;font-size:30px;color:#ffe9a8;font-weight:700;white-space:nowrap}
+.exp{flex:1;min-width:0;border-left:3px solid rgba(255,255,255,.2);padding-left:34px}
+.exp .et{font-size:26px;color:#ffd54a;font-weight:800;letter-spacing:6px;margin-bottom:6px}
+.exp .ex{font-size:32px;line-height:1.38;color:#fff}
+.exp .ex.m{font-size:28px}.exp .ex.s{font-size:25px}.exp .ex.xs{font-size:22px;line-height:1.32}
+
+.side{flex:none;width:330px;display:flex;flex-direction:column;gap:6px}
+.side .sh{height:44px;font-size:28px;color:#9fb4f2;text-align:center;letter-spacing:8px}
+.row{height:72px;display:flex;align-items:center;padding:0 22px;border-radius:14px;font-size:34px;font-weight:700;color:#ffb74d;background:rgba(10,24,80,.55)}
+.row .n{width:52px;font-size:30px;color:#8fa3e8}
+.row .a{margin-left:auto;font-variant-numeric:tabular-nums}
+.row .sf{font-size:18px;margin-left:6px;padding:2px 8px;border-radius:10px;background:#ffd54a;color:#3b2a00;font-weight:800}
+.row.safe{color:#ffffff;background:rgba(40,70,170,.6)}
+.row.safe .n{color:#ffd54a}
+.row.done{background:rgba(24,110,64,.5);color:#bff5d4}
+.row.cur{background:linear-gradient(90deg,#ffb300,#ff8f00);color:#1b1100;transform:scale(1.04);box-shadow:0 0 22px rgba(255,170,0,.8)}
+.row.cur .n{color:#1b1100}
+.row.cur.ok{background:linear-gradient(90deg,#35d27a,#1b9a56);color:#fff;box-shadow:0 0 22px rgba(60,220,130,.7)}
+.row.cur.ok .n{color:#fff}
+.row.cur.bad{background:linear-gradient(90deg,#ef5350,#b71c1c);color:#fff;box-shadow:0 0 22px rgba(255,80,80,.7)}
+.row.cur.bad .n{color:#fff}
+
+/* ───── 结算 ───── */
+.over{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.over .av{width:220px;height:220px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:120px;font-weight:900;color:#1a1200;border:7px solid rgba(255,255,255,.9);box-shadow:0 0 60px rgba(255,200,60,.5)}
+.over .o1{margin-top:22px;font-size:84px;font-weight:900}
+.over .o2{margin-top:6px;font-size:54px;color:#cfd9ff;letter-spacing:6px}
+.over .o3{margin-top:10px;font-size:240px;line-height:1.05;font-weight:900;color:#ffd54a;filter:drop-shadow(0 8px 0 rgba(120,70,0,.5))}
+.over.lose .o3{color:#cfd9ff;filter:none}
+.over .o4{margin-top:10px;font-size:44px;color:#ffe9a8}
+.over .o5{margin-top:36px;font-size:32px;color:#9fb4f2}
+.badge{display:inline-block;margin-left:16px;padding:4px 26px;border-radius:30px;background:linear-gradient(#ffe27a,#f2a900);color:#3b2a00;font-weight:900}
+
+/* ───── 声音入口 / 断线提示 ───── */
+#gate{position:fixed;inset:0;z-index:50;background:radial-gradient(ellipse at 50% 30%,#1d3f94,#040a24);display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center}
+#gate .gt{font-size:8vw;font-weight:900;color:#ffd54a;letter-spacing:.6vw}
+#gate button{margin-top:4vw;padding:1.6vw 4vw;font-size:3vw;font-weight:800;border-radius:6vw;border:.4vw solid #fff3c4;color:#1b1100;
+  background:linear-gradient(#ffc107,#f57c00);font-family:inherit;outline:none}
+#gate button:focus{box-shadow:0 0 0 .6vw rgba(255,255,255,.7)}
+#gate .gh{margin-top:1.6vw;font-size:1.8vw;color:#9fb4f2}
+#offline{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:40;padding:8px 26px;border-radius:30px;background:rgba(200,50,50,.92);color:#fff;font-size:22px;display:none}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<canvas id="fx"></canvas>
+<div id="offline">与游戏主机的连接中断，正在重新连接……</div>
+<div id="gate">
+  <div class="gt">家庭百万富翁</div>
+  <button id="gateBtn" type="button">点这里 / 按遥控器「确定」开始</button>
+  <div class="gh">先点一下，电视才会有音效</div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var stage = document.getElementById('stage');
+  var gate = document.getElementById('gate');
+  var gateBtn = document.getElementById('gateBtn');
+  var offlineBox = document.getElementById('offline');
+  var CATCLS = { '文史': 'c0', '理科': 'c1', '通识': 'c2', '二次元': 'c3' };
+  var RES = { win: '通关百万富翁！', walk: '见好就收，漂亮', wrong: '遗憾止步' };
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function fmtTime(ts) { var d = new Date(ts); return pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+  function money(n) { return '¥' + n; }
+
+  /* ───── 缩放舞台（×0.95 留过扫描安全边距，老电视会裁掉四边几个像素） ───── */
+  function fit() {
+    var w = window.innerWidth, h = window.innerHeight;
+    var s = Math.min(w / 1920, h / 1080) * 0.95;
+    stage.style.transform = 'scale(' + s + ')';
+    stage.style.left = Math.round((w - 1920 * s) / 2) + 'px';
+    stage.style.top = Math.round((h - 1080 * s) / 2) + 'px';
+  }
+  window.addEventListener('resize', fit); fit();
+
+  /* ───── 音效（Web Audio 合成，不需要音频文件）───── */
+  var Snd = (function () {
+    var ctx = null, master = null, ready = false, muted = false, susTimer = null, susStep = 0;
+    function init() {
+      try {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        ctx = new AC(); master = ctx.createGain(); master.gain.value = 0.55; master.connect(ctx.destination);
+        if (ctx.resume) ctx.resume();
+        ready = true;
+      } catch (e) { ready = false; }
+    }
+    function tone(freq, t0, dur, type, vol, slideTo) {
+      if (!ready || muted) return;
+      try {
+        var t = ctx.currentTime + t0;
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = type || 'sine';
+        o.frequency.setValueAtTime(freq, t);
+        if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(vol || 0.25, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        o.connect(g); g.connect(master);
+        o.start(t); o.stop(t + dur + 0.05);
+      } catch (e) { /* 忽略 */ }
+    }
+    function seq(notes, gap, dur, type, vol) { notes.forEach(function (f, i) { tone(f, i * gap, dur, type, vol); }); }
+    return {
+      init: init,
+      setMuted: function (m) { muted = !!m; if (muted) this.stopSuspense(); },
+      start: function () { seq([392, 523, 659, 784], 0.14, 0.4, 'triangle', 0.25); },
+      next: function () { seq([523, 659], 0.1, 0.3, 'triangle', 0.22); },
+      select: function () { tone(740, 0, 0.14, 'triangle', 0.22); },
+      lock: function () { tone(330, 0, 0.18, 'square', 0.12); tone(494, 0.14, 0.4, 'square', 0.12); },
+      fifty: function () { tone(1100, 0, 0.5, 'sawtooth', 0.1, 260); tone(800, 0.1, 0.4, 'triangle', 0.15, 200); },
+      swap: function () { seq([440, 330, 523], 0.11, 0.25, 'triangle', 0.2); },
+      suspense: function () {
+        var self = this; self.stopSuspense(); susStep = 0;
+        function beat() {
+          tone(susStep % 2 ? 82 : 98, 0, 0.42, 'sawtooth', 0.11);
+          tone(196, 0, 0.12, 'square', 0.04);
+          susStep++;
+        }
+        beat(); susTimer = setInterval(beat, 520);
+      },
+      stopSuspense: function () { if (susTimer) { clearInterval(susTimer); susTimer = null; } },
+      correct: function () { seq([523, 659, 784, 1047], 0.12, 0.5, 'triangle', 0.3); tone(1047, 0.5, 0.9, 'sine', 0.25); },
+      wrong: function () { tone(233, 0, 0.55, 'sawtooth', 0.22, 120); tone(175, 0.4, 0.9, 'sawtooth', 0.2, 80); },
+      win: function () {
+        var m = [523, 523, 523, 659, 784, 659, 784, 1047];
+        var g = [0, 0.16, 0.32, 0.5, 0.75, 1.05, 1.2, 1.5];
+        m.forEach(function (f, i) { tone(f, g[i], 0.5, 'triangle', 0.3); tone(f / 2, g[i], 0.5, 'sine', 0.2); });
+        tone(1047, 1.5, 1.6, 'sine', 0.25);
+      },
+      sad: function () { seq([392, 370, 349, 330], 0.3, 0.6, 'triangle', 0.2); }
+    };
+  })();
+
+  /* ───── 彩带 ───── */
+  var Fx = (function () {
+    var cv = document.getElementById('fx'), c2 = cv.getContext && cv.getContext('2d'), parts = [], raf = 0;
+    function size() { cv.width = window.innerWidth; cv.height = window.innerHeight; }
+    window.addEventListener('resize', size); size();
+    var cols = ['#f5c542', '#ff5252', '#40c4ff', '#69f0ae', '#e040fb', '#ffffff'];
+    function tick() {
+      c2.clearRect(0, 0, cv.width, cv.height);
+      for (var i = 0; i < parts.length; i++) {
+        var p = parts[i];
+        p.x += p.vx; p.y += p.vy; p.r += p.vr;
+        c2.save(); c2.translate(p.x, p.y); c2.rotate(p.r); c2.fillStyle = p.c; c2.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); c2.restore();
+      }
+      parts = parts.filter(function (p) { return p.y < cv.height + 40; });
+      if (parts.length) raf = requestAnimationFrame(tick); else { raf = 0; c2.clearRect(0, 0, cv.width, cv.height); }
+    }
+    return {
+      burst: function (n) {
+        if (!c2) return;
+        for (var i = 0; i < n; i++) {
+          parts.push({ x: Math.random() * cv.width, y: -20 - Math.random() * cv.height * 1.2, vx: (Math.random() - 0.5) * 3, vy: 2.5 + Math.random() * 5,
+            w: 9 + Math.random() * 10, h: 14 + Math.random() * 14, r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.3, c: cols[i % cols.length] });
+        }
+        if (!raf) raf = requestAnimationFrame(tick);
+      },
+      stop: function () { parts = []; }
+    };
+  })();
+
+  /* ───── 渲染 ───── */
+  var S = null, lastJSON = '', lastKey = '';
+
+  function avatar(p, cls) {
+    return '<div class="' + cls + '" style="background:' + esc(p.color || '#f5a623') + '">' + esc(p.avatar || (p.name || '?').slice(0, 1)) + '</div>';
+  }
+
+  function lobbyHTML() {
+    var best = 0; S.players.forEach(function (p) { if (p.best > best) best = p.best; });
+    var many = S.players.length > 3 ? ' many' : '';
+    var cards = S.players.map(function (p) {
+      return '<div class="card">' + (best > 0 && p.best === best ? '<div class="crown">最高纪录</div>' : '') +
+        avatar(p, 'av') + '<div class="nm">' + esc(p.name) + '</div>' +
+        '<div class="lb">历史最高奖金</div><div class="bs">' + money(p.best) + '</div>' +
+        '<div class="st">共 <b>' + p.games + '</b> 局 · 通关 <b>' + p.wins + '</b> 次</div></div>';
+    }).join('');
+    var rc = S.recent.length ? '最近：' + S.recent.slice(0, 3).map(function (r) {
+      return esc(r.playerName) + ' ' + money(r.prize);
+    }).join('　') : '还没有人玩过，等你来创造第一个纪录！';
+    return '<div class="screen lobby fade">' +
+      '<div class="brand">家庭百万富翁</div>' +
+      '<div class="rules">12 道题 · 最高奖金 <b>' + money(S.ladder[11]) + '</b> · 两道保险线 · 两次求助</div>' +
+      '<div class="cards' + many + '">' + cards + '</div>' +
+      '<div class="wait">等待主持人选择选手<span class="dots"></span></div>' +
+      '<div class="foot"><div>爸爸累计发出 <b>' + money(S.totalPaid) + '</b></div><div class="rc">' + rc + '</div></div></div>';
+  }
+
+  function ladderHTML() {
+    var cur = S.idx;
+    var passed = (S.phase === 'result' && S.lastCorrect) ? S.idx : S.idx - 1;
+    var rows = '';
+    for (var i = 11; i >= 0; i--) {
+      var cls = 'row';
+      var safe = S.safe.indexOf(i) >= 0;
+      if (safe) cls += ' safe';
+      if (i === cur) {
+        cls += ' cur';
+        if (S.phase === 'result') cls += S.lastCorrect ? ' ok' : ' bad';
+      } else if (i <= passed) cls += ' done';
+      rows += '<div class="' + cls + '"><span class="n">' + (i + 1) + '</span>' + (safe ? '<span class="sf">保险线</span>' : '') + '<span class="a">' + money(S.ladder[i]) + '</span></div>';
+    }
+    return '<div class="side"><div class="sh">奖金阶梯</div>' + rows + '</div>';
+  }
+
+  function qSizeCls(t) { var n = t.length; return n <= 30 ? '' : n <= 50 ? ' m' : n <= 80 ? ' l' : ' xl'; }
+
+  function optHTML(i) {
+    var q = S.question, cls = 'opt';
+    var txt = q.options[i], len = txt.length;
+    cls += len > 18 ? ' s3' : len > 11 ? ' s2' : '';
+    if ((S.removed || []).indexOf(i) >= 0) cls += ' gone';
+    if (S.phase === 'question' && S.selected === i) cls += ' sel';
+    if (S.phase === 'revealing' && S.selected === i) cls += ' sel lock';
+    if (S.phase === 'result') {
+      if (i === S.reveal.answer) cls += ' right';
+      else if (i === S.selected) cls += ' wrong';
+      else cls += ' dim';
+    }
+    return '<div class="' + cls + '"><span class="lt">' + 'ABCD'.charAt(i) + '</span><span class="tx">' + esc(txt) + '</span></div>';
+  }
+
+  function statusHTML() {
+    if (S.phase === 'question') {
+      if (S.selected == null) return '<div class="status"><div class="big d">请选手思考作答<span class="dots"></span></div></div>';
+      return '<div class="status"><div class="big o">最终答案是 ' + 'ABCD'.charAt(S.selected) + '，确定吗？</div></div>';
+    }
+    if (S.phase === 'revealing') return '<div class="status"><div class="big o">正在揭晓<span class="dots"></span></div></div>';
+    if (S.phase === 'result') {
+      var good = S.reveal.correct, ex = S.reveal.explain || '', ans = S.reveal.answer;
+      var v1, v2;
+      if (good) {
+        v1 = '答对了！';
+        v2 = S.idx >= 11 ? '全部通关！' : '当前奖金 ' + money(S.ladder[S.idx]);
+      } else {
+        v1 = '答错了';
+        v2 = '正确答案 ' + 'ABCD'.charAt(ans) + (S.fallback > 0 ? ' · 退回 ' + money(S.fallback) : ' · 归零');
+      }
+      var cls = ex.length > 150 ? ' xs' : ex.length > 105 ? ' s' : ex.length > 70 ? ' m' : '';
+      var tail = '';
+      if (good && S.idx < 11) tail = '<div class="ex' + cls + '" style="margin-top:6px;color:#ffe9a8">继续挑战，还是见好就收？</div>';
+      var body = ex ? '<div class="et">知识小课堂</div><div class="ex' + cls + '">' + esc(ex) + '</div>' : '<div class="ex">' + esc(good ? '回答正确！' : '再接再厉！') + '</div>';
+      if (!ex) tail = tail;
+      return '<div class="status res ' + (good ? 'good' : 'bad') + '"><div class="verdict"><div class="v1">' + v1 + '</div><div class="v2">' + esc(v2) + '</div></div><div class="exp">' + body + (ex ? tail : tail) + '</div></div>';
+    }
+    return '<div class="status"></div>';
+  }
+
+  function gameHTML(animate) {
+    var q = S.question, p = S.player;
+    var helps = '<div class="help' + (S.lifelines.fifty ? '' : ' used') + '">50:50</div><div class="help' + (S.lifelines.swap ? '' : ' used') + '">换题</div>';
+    return '<div class="screen game' + (animate ? ' fade' : '') + '"><div class="main">' +
+      '<div class="top"><div class="who">' + avatar(p, 'av') + '<span>' + esc(p.name) + '</span></div>' +
+      '<div class="meta"><span class="tag ' + (CATCLS[q.cat] || 'c0') + '">' + esc(q.cat) + '</span>' +
+      '<span>第 ' + (S.idx + 1) + ' 题</span><span class="prize">' + money(S.ladder[S.idx]) + '</span></div>' +
+      '<div class="helps">' + helps + '</div></div>' +
+      '<div class="qbox"><div class="qtext' + qSizeCls(q.q) + '">' + esc(q.q) + '</div></div>' +
+      '<div class="opts">' + [0, 1, 2, 3].map(optHTML).join('') + '</div>' +
+      statusHTML() + '</div>' + ladderHTML() + '</div>';
+  }
+
+  function overHTML() {
+    var o = S.outcome, p = S.player, win = o.result === 'win', lose = o.result === 'wrong';
+    var sub = RES[o.result];
+    var line = '答对 ' + o.reached + ' 题' + (lose ? ' · 倒在第 ' + (o.reached + 1) + ' 题' : '');
+    if (o.newRecord) line += '<span class="badge">刷新个人最高纪录</span>';
+    return '<div class="screen over' + (lose ? ' lose' : '') + ' fade">' + avatar(p, 'av') +
+      '<div class="o1">' + esc(p.name) + '</div><div class="o2">' + esc(sub) + '</div>' +
+      '<div class="o3">' + money(o.prize) + '</div><div class="o4">' + line + '</div>' +
+      '<div class="o5">爸爸累计已发出 ' + money(S.totalPaid) + (win ? '　　（钱包在哭泣）' : '') + '</div></div>';
+  }
+
+  function render() {
+    var key, html;
+    if (S.phase === 'lobby') { key = 'lobby'; }
+    else if (S.phase === 'gameover') { key = 'over'; }
+    else { key = 'g' + S.idx + ':' + S.question.q; }
+    var animate = key !== lastKey;
+    if (S.phase === 'lobby') html = lobbyHTML();
+    else if (S.phase === 'gameover') html = overHTML();
+    else html = gameHTML(animate);
+    if ((S.phase === 'lobby' || S.phase === 'gameover') && !animate) html = html.replace(' fade">', '">');
+    lastKey = key;
+    stage.innerHTML = html;
+  }
+
+  /* ───── 声音触发 ───── */
+  function sounds(p, s) {
+    if (!p) return;
+    if (s.phase !== p.phase || s.idx !== p.idx) {
+      if (s.phase === 'question') { Snd.stopSuspense(); if (p.phase === 'lobby' || p.phase === 'gameover') Snd.start(); else Snd.next(); }
+      else if (s.phase === 'revealing') { Snd.lock(); Snd.suspense(); }
+      else if (s.phase === 'result') { Snd.stopSuspense(); if (s.reveal && s.reveal.correct) Snd.correct(); else Snd.wrong(); }
+      else if (s.phase === 'gameover') {
+        Snd.stopSuspense();
+        if (s.outcome && s.outcome.result !== 'wrong' && s.outcome.prize > 0) {
+          Snd.win(); Fx.burst(s.outcome.result === 'win' ? 420 : 220);
+        } else Snd.sad();
+      } else { Snd.stopSuspense(); Fx.stop(); }
+      return;
+    }
+    if (s.phase === 'question') {
+      if (s.selected !== p.selected && s.selected != null) Snd.select();
+      if ((s.removed || []).length > (p.removed || []).length) Snd.fifty();
+      if (s.question.q !== p.question.q) Snd.swap();
+    }
+  }
+
+  function onState(j) {
+    var str = JSON.stringify(j);
+    if (str === lastJSON) return;
+    lastJSON = str;
+    var prev = S; S = j;
+    Snd.setMuted(S.muted);
+    try { sounds(prev, S); } catch (e) { /* 声音出错不影响画面 */ }
+    render();
+  }
+
+  /* ───── 与主机保持连接 ───── */
+  var lastMsg = Date.now(), es = null;
+  function setOffline(b) { offlineBox.style.display = b ? 'block' : 'none'; }
+  function connect() {
+    if (!window.EventSource) return;
+    try { if (es) es.close(); } catch (e) { /* 忽略 */ }
+    es = new EventSource('/events?role=tv');
+    es.onopen = function () { lastMsg = Date.now(); setOffline(false); };
+    es.onmessage = function (e) { lastMsg = Date.now(); setOffline(false); try { onState(JSON.parse(e.data)); } catch (err) { /* 忽略坏数据 */ } };
+    es.onerror = function () { setOffline(true); if (es && es.readyState === 2) setTimeout(connect, 2000); };
+  }
+  function poll() {
+    fetch('/api/state?role=tv', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) { lastMsg = Date.now(); setOffline(false); onState(j); }).catch(function () { setOffline(true); });
+  }
+  connect(); poll();
+  setInterval(function () { if (!window.EventSource || Date.now() - lastMsg > 6000) poll(); }, 4000);
+  setInterval(function () { if (window.EventSource && Date.now() - lastMsg > 40000) connect(); }, 10000);
+
+  /* ───── 开启声音的入口 ───── */
+  function enter() {
+    Snd.init();
+    gate.style.display = 'none';
+    Snd.start();
+  }
+  gateBtn.addEventListener('click', enter);
+  document.addEventListener('keydown', function (e) {
+    if (gate.style.display !== 'none' && (e.key === 'Enter' || e.keyCode === 13 || e.keyCode === 23 || e.key === ' ')) { e.preventDefault(); enter(); }
+  });
+  setTimeout(function () { try { gateBtn.focus(); } catch (e) { /* 忽略 */ } }, 100);
+})();
+</script>
+</body>
+</html>
