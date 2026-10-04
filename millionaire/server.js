@@ -116,6 +116,7 @@ function migrateQuestions(list) {
     questions = r.data.questions;
     qMeta.defaultsVersion = Number(r.data.defaultsVersion) || 1;
     const tagged = migrateQuestions(questions);
+    questions.forEach(q => { if (q.used !== true) q.used = false; });   // 老数据没有 used 字段，默认可用
     if (qMeta.defaultsVersion < DEFAULTS_VERSION) {
       // 旧版升级：备份 → 补上新增的默认题（原 100 题里被你删掉的不会回来）
       backup(F_Q, true);
@@ -137,6 +138,11 @@ function migrateQuestions(list) {
   }
 }
 function saveQuestions(force) { backup(F_Q, force); writeJson(F_Q, { defaultsVersion: qMeta.defaultsVersion, questions }); }
+/** 题目一旦被展示就标记为已用，不再参与抽题（全家一起看，全局烧题） */
+function markUsed(id) {
+  const q = questions.find(x => x.id === id);
+  if (q && !q.used) { q.used = true; saveQuestions(); }
+}
 
 let scores = loadStrict(F_S, '记分牌', j => j && Array.isArray(j.players)).data;
 if (!scores || !Array.isArray(scores.players)) {
@@ -175,7 +181,7 @@ function normQuestion(o) {
   if (!Number.isInteger(answer) || answer < 0 || answer > 3) return { err: '请选择正确答案' };
   const explain = String(o.explain == null ? '' : o.explain).trim();
   if (explain.length > 500) return { err: '解析太长（最多500字）' };
-  return { q: { id: o.id ? String(o.id) : '', cat, stage, q, options, answer, explain, flag: !!o.flag } };
+  return { q: { id: o.id ? String(o.id) : '', cat, stage, q, options, answer, explain, flag: !!o.flag, used: !!o.used } };
 }
 function normPlayer(o, keepId) {
   if (!o || typeof o !== 'object') return { err: '格式不对' };
@@ -211,17 +217,15 @@ function normRecord(o) {
 /* ───────────── 抽题 ───────────── */
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
-/** stage = 选手学段(1~4)。三档题目的学段依次是 L-1 / L / L+1，每档每个分类各一题 */
+/** stage = 选手学段(1~4)。三档题目的学段依次是 L-1 / L / L+1，每档每个分类各一题。
+ *  只从未用过的题里抽（used=true 的题是之前对局里展示过的，全家都看过答案了）。 */
 function pickGame(stage) {
   const ts = tierStages(clampStage(Number(stage) || DEFAULT_STAGE));
-  const recent = new Set(scores.recentIds);
   const used = new Set();
   const take = (fn) => {
-    const all = questions.filter(q => !used.has(q.id) && fn(q));
+    const all = questions.filter(q => !used.has(q.id) && !q.used && fn(q));
     if (!all.length) return null;
-    const fresh = all.filter(q => !recent.has(q.id));
-    const pool = fresh.length ? fresh : all;
-    const q = pool[Math.floor(Math.random() * pool.length)];
+    const q = all[Math.floor(Math.random() * all.length)];
     used.add(q.id);
     return q;
   };
@@ -241,7 +245,7 @@ function pickGame(stage) {
         if (q) break;
       }
       q = q || take(x => Math.abs(x.stage - level) === 1) || take(() => true);
-      if (!q) return { ok: false, error: '题库里的题目不够抽满 12 题，请先到「题库」里补题。' };
+      if (!q) return { ok: false, error: '可用题目不够 12 道（玩过的题不会再出现）。请到「题库」添加新题，或把已用题目重新设为可用。' };
       tier.push(q);
     }
     tiers.push(shuffle(tier));
@@ -320,13 +324,12 @@ function startGame(playerId) {
   if (!pl) return { ok: false, error: '找不到这位选手' };
   const pick = pickGame(pl.stage);
   if (!pick.ok) return pick;
-  scores.recentIds = scores.recentIds.concat(pick.qs.map(q => q.id)).slice(-24);
-  saveScores();
   game = {
     phase: 'question', playerId: pl.id, playerName: pl.name, playerAvatar: pl.avatar, playerColor: pl.color, playerStage: pl.stage,
     qs: pick.qs, usedIds: pick.qs.map(q => q.id), idx: 0, selected: null, removed: [],
     lifelines: { fifty: true, swap: true }, lastCorrect: null, outcome: null, startedAt: Date.now(),
   };
+  markUsed(pick.qs[0].id);   // 第 1 题展示即烧掉
   return { ok: true };
 }
 
@@ -386,9 +389,7 @@ function act(a) {
       const n = src[Math.floor(Math.random() * src.length)];
       g.qs[g.idx] = { id: n.id, cat: n.cat, stage: n.stage, q: n.q, options: n.options.slice(), answer: n.answer, explain: n.explain };
       g.usedIds.push(n.id);
-      // 换进来的新题也要进 recentIds，避免下一局立刻重复遇到；被换掉的旧题保留在里面
-      scores.recentIds = scores.recentIds.concat([n.id]).slice(-24);
-      saveScores();
+      markUsed(n.id);   // 换进来的题展示即烧掉（替代原来的 recentIds 写入）
       g.removed = [];
       g.lifelines.swap = false; return { ok: true };
     }
@@ -396,6 +397,7 @@ function act(a) {
       if (g.phase !== 'result' || !g.lastCorrect) return bad('现在不能进入下一题');
       if (g.idx >= 11) { endGame('win', LADDER[11], 12); return { ok: true }; }
       g.idx += 1; g.selected = null; g.removed = []; g.lastCorrect = null; g.phase = 'question';
+      markUsed(g.qs[g.idx].id);   // 新题展示即烧掉
       return { ok: true };
     }
     case 'walk': {
@@ -428,6 +430,7 @@ function view(role) {
     phase: g.phase, muted, ladder: LADDER, safe: SAFE,
     players: scores.players.map(playerStats),
     totalPaid: totalPaid(),
+    avail: questions.filter(q => !q.used).length,   // 题库可用题数（大厅展示，烧光前有预期）
     recent: scores.history.slice(-5).reverse().map(r => ({ playerName: r.playerName, prize: r.prize, result: r.result, ts: r.ts })),
   };
   if (host) { out.clients = { tv: countClients('tv'), host: countClients('host') }; out.notices = notices; }
@@ -661,6 +664,15 @@ async function api(req, res, u) {
     backup(F_Q, true);
     questions = clone(DEFAULTS); qMeta.defaultsVersion = DEFAULTS_VERSION; saveQuestions(true); scheduleBroadcast();
     return send(res, 200, { count: questions.length });
+  }
+  if (p === '/api/questions/reuse' && m === 'POST') {
+    // 把已用题目重新设为可用：不传 ids 则全部恢复，传 ids 数组则只恢复这些
+    const ids = Array.isArray(body.ids) ? body.ids.map(String) : null;
+    let n = 0;
+    questions.forEach(q => { if (q.used && (!ids || ids.indexOf(q.id) >= 0)) { q.used = false; n++; } });
+    if (n) saveQuestions();
+    scheduleBroadcast();
+    return send(res, 200, { ok: true, count: n });
   }
   let mm = p.match(/^\/api\/questions\/([^/]+)$/);
   if (mm) {

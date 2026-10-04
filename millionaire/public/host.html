@@ -147,7 +147,7 @@ pre.mono{white-space:pre-wrap;word-break:break-all;font-size:13px;color:var(--di
   var PIN = '';
   try { PIN = sessionStorage.getItem('hostpin') || ''; } catch (e) { /* 忽略 */ }
   var S = null, Q = null, SC = null, INFO = null;
-  var filter = { cat: '', level: 0, kw: '', flag: false };   // level 字段存的是学段 1~4，0=全部
+  var filter = { cat: '', level: 0, kw: '', flag: false, used: 0 };   // level 字段存的是学段 1~4，0=全部；used: 0=全部 1=只看可用 2=只看已用
   var es = null, lastMsg = 0, busy = false;
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -220,7 +220,7 @@ pre.mono{white-space:pre-wrap;word-break:break-all;font-size:13px;color:var(--di
       h += '<div class="card" style="border-color:' + (n.level === 'error' ? '#ff5252' : '#4fc3f7') + ';margin-bottom:10px"><div style="font-size:14px;line-height:1.5">' + (n.level === 'error' ? '⚠️ ' : 'ℹ️ ') + esc(n.text) + '</div><div class="bar"><button class="ghost" onclick="dismissN(' + i + ')">知道了</button></div></div>';
     });
     var tvN = S.clients ? S.clients.tv : 0;
-    h += '<div class="small" style="margin-bottom:8px">' + (tvN ? '电视已连接 ✓' : '<span class="warn">电视还没有连上：请在电视上打开游戏地址（见「数据」页）</span>') + '　爸爸累计已发出 ¥' + S.totalPaid + '</div>';
+    h += '<div class="small" style="margin-bottom:8px">' + (tvN ? '电视已连接 ✓' : '<span class="warn">电视还没有连上：请在电视上打开游戏地址（见「数据」页）</span>') + '　爸爸累计已发出 ¥' + S.totalPaid + '　题库可用 <b>' + S.avail + '</b> 道' + (S.avail < 12 ? ' <span class="warn">（不够开一局，请加题或恢复已用题）</span>' : '') + '</div>';
 
     if (S.phase === 'lobby') {
       h += '<h2>请选择上场的选手</h2><div class="pl">' + S.players.map(function (p) {
@@ -304,36 +304,48 @@ pre.mono{white-space:pre-wrap;word-break:break-all;font-size:13px;color:var(--di
   function renderBank() {
     var el = $('pgBank');
     if (!Q) { el.innerHTML = '<div class="card">加载中……</div>'; return; }
-    var cnt = {}; Q.forEach(function (q) { var k = q.cat + q.stage; cnt[k] = (cnt[k] || 0) + 1; });
-    var h = '<h2>题库（共 ' + Q.length + ' 题）</h2><div class="card"><table class="mx"><tr><th></th>' + [1, 2, 3, 4].map(function (l) { return '<th>' + LV[l] + '</th>'; }).join('') + '</tr>';
+    var cnt = {}; Q.forEach(function (q) { if (q.used) return; var k = q.cat + q.stage; cnt[k] = (cnt[k] || 0) + 1; });
+    var availN = Q.filter(function (q) { return !q.used; }).length, usedN = Q.length - availN;
+    var h = '<h2>题库（共 ' + Q.length + ' 题，可用 ' + availN + ' 题）</h2><div class="card"><table class="mx"><tr><th></th>' + [1, 2, 3, 4].map(function (l) { return '<th>' + LV[l] + '</th>'; }).join('') + '</tr>';
     CATS.forEach(function (c) {
       h += '<tr><th>' + c + '</th>' + [1, 2, 3, 4].map(function (l) { var n = cnt[c + l] || 0; return '<td' + (n < 6 ? ' class="warn"' : '') + '>' + n + '</td>'; }).join('') + '</tr>';
     });
-    h += '</table><div class="small" style="margin-top:6px">每局按选手的学段取三档题（学段 -1 / 学段 / 学段 +1），每档每类各抽 1 题。两端学段的选手有两档会用到同一学段，建议每格不少于 8 题；低于 6 题的格子标橙色。</div></div>';
+    h += '</table><div class="small" style="margin-top:6px">玩过的题会自动标为「已用」，不再参与抽题；表格里只统计可用题。两端学段的选手有两档会用到同一学段，建议每格不少于 8 题；低于 6 题的格子标橙色。' +
+      (usedN ? '<br>已有 ' + usedN + ' 道题用过，<a href="javascript:void(0)" id="reuseAll">点此全部重新设为可用</a>。' : '') + '</div></div>';
 
     h += '<div class="chips" id="fc">' + ['全部'].concat(CATS).map(function (c) { return '<button class="chip' + ((c === '全部' && !filter.cat) || c === filter.cat ? ' on' : '') + '" data-c="' + (c === '全部' ? '' : c) + '">' + c + '</button>'; }).join('') + '</div>';
     h += '<div class="chips" id="fl">' + ['全部学段', '小学', '初中', '高中', '大学'].map(function (c, i) { return '<button class="chip' + (filter.level === i ? ' on' : '') + '" data-l="' + i + '">' + c + '</button>'; }).join('') +
       '<button class="chip' + (filter.flag ? ' on' : '') + '" id="ff">只看待核对</button></div>';
+    h += '<div class="chips" id="fu">' + ['全部题目', '只看可用', '只看已用'].map(function (c, i) { return '<button class="chip' + (filter.used === i ? ' on' : '') + '" data-u="' + i + '">' + c + '</button>'; }).join('') + '</div>';
     h += '<input id="kw" placeholder="搜索题目、选项、解析里的文字" value="' + esc(filter.kw) + '"><div style="height:10px"></div>';
     var list = Q.filter(function (q) {
       if (filter.cat && q.cat !== filter.cat) return false;
       if (filter.level && q.stage !== filter.level) return false;
       if (filter.flag && !q.flag) return false;
+      if (filter.used === 1 && q.used) return false;
+      if (filter.used === 2 && !q.used) return false;
       if (filter.kw) { var s = (q.q + q.options.join('') + (q.explain || '')); if (s.indexOf(filter.kw) < 0) return false; }
       return true;
     });
     h += '<div class="small" style="margin-bottom:8px">符合条件 ' + list.length + ' 题</div><div id="ql">';
     list.forEach(function (q) {
-      h += '<div class="qi"><span class="tag ' + CATCLS[q.cat] + '">' + esc(q.cat) + '</span><span class="tag lv">' + LV[q.stage] + '</span>' + (q.flag ? '<span class="tag" style="background:#ffb300">待核对</span>' : '') +
+      h += '<div class="qi"><span class="tag ' + CATCLS[q.cat] + '">' + esc(q.cat) + '</span><span class="tag lv">' + LV[q.stage] + '</span>' + (q.flag ? '<span class="tag" style="background:#ffb300">待核对</span>' : '') + (q.used ? '<span class="tag" style="background:#9e9e9e">已用过</span>' : '') +
         '<div class="qt">' + esc(q.q) + '</div><div class="qa">答案 ' + L[q.answer] + '：' + esc(q.options[q.answer]) + '</div>' +
         '<div class="small">' + q.options.map(function (o, i) { return L[i] + '.' + esc(o); }).join('　') + '</div>' +
-        '<div class="bt"><button data-e="' + esc(q.id) + '">编辑</button><button class="red" data-d="' + esc(q.id) + '">删除</button></div></div>';
+        '<div class="bt"><button data-e="' + esc(q.id) + '">编辑</button><button data-t="' + esc(q.id) + '">' + (q.used ? '设为可用' : '标为已用') + '</button><button class="red" data-d="' + esc(q.id) + '">删除</button></div></div>';
     });
     h += '</div><button class="fab gold" id="addQ">＋</button>';
     el.innerHTML = h;
     Array.prototype.forEach.call(el.querySelectorAll('#fc .chip'), function (b) { b.onclick = function () { filter.cat = b.getAttribute('data-c'); renderBank(); }; });
     Array.prototype.forEach.call(el.querySelectorAll('#fl .chip[data-l]'), function (b) { b.onclick = function () { filter.level = Number(b.getAttribute('data-l')); renderBank(); }; });
+    Array.prototype.forEach.call(el.querySelectorAll('#fu .chip'), function (b) { b.onclick = function () { filter.used = Number(b.getAttribute('data-u')); renderBank(); }; });
     $('ff').onclick = function () { filter.flag = !filter.flag; renderBank(); };
+    var ra = $('reuseAll');
+    if (ra) ra.onclick = function () {
+      var n = Q.filter(function (q) { return q.used; }).length;
+      if (!n || !confirm('把 ' + n + ' 道已用题目全部重新设为可用吗？')) return;
+      api('POST', '/api/questions/reuse', {}).then(function (j) { toast('已恢复 ' + j.count + ' 道'); loadBank(); }).catch(function (e) { toast(e.message, true); });
+    };
     var kw = $('kw');
     kw.oninput = function () {
       filter.kw = kw.value.trim();
@@ -341,6 +353,15 @@ pre.mono{white-space:pre-wrap;word-break:break-all;font-size:13px;color:var(--di
     };
     $('addQ').onclick = function () { editQ(null); };
     Array.prototype.forEach.call(el.querySelectorAll('[data-e]'), function (b) { b.onclick = function () { editQ(b.getAttribute('data-e')); }; });
+    Array.prototype.forEach.call(el.querySelectorAll('[data-t]'), function (b) {
+      b.onclick = function () {
+        var id = b.getAttribute('data-t');
+        var q = Q.filter(function (x) { return x.id === id; })[0];
+        if (!q) return;
+        var body = { cat: q.cat, stage: q.stage, q: q.q, options: q.options, answer: q.answer, explain: q.explain || '', flag: !!q.flag, used: !q.used };
+        api('PUT', '/api/questions/' + encodeURIComponent(id), body).then(function () { loadBank(); }).catch(function (e) { toast(e.message, true); });
+      };
+    });
     Array.prototype.forEach.call(el.querySelectorAll('[data-d]'), function (b) {
       b.onclick = function () {
         var id = b.getAttribute('data-d');
@@ -356,20 +377,21 @@ pre.mono{white-space:pre-wrap;word-break:break-all;font-size:13px;color:var(--di
   $('modal').addEventListener('mousedown', function (e) { if (e.target === $('modal')) closeModal(); });
 
   function editQ(id) {
-    var q = id ? Q.filter(function (x) { return x.id === id; })[0] : { cat: filter.cat || '文史', stage: filter.level || 2, q: '', options: ['', '', '', ''], answer: 0, explain: '', flag: false };
+    var q = id ? Q.filter(function (x) { return x.id === id; })[0] : { cat: filter.cat || '文史', stage: filter.level || 2, q: '', options: ['', '', '', ''], answer: 0, explain: '', flag: false, used: false };
     var h = '<h2>' + (id ? '编辑题目' : '新增题目') + '</h2><div class="row"><div><label>分类</label><select id="eCat">' + CATS.map(function (c) { return '<option' + (c === q.cat ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></div>' +
       '<div><label>学段（谁能答对）</label><select id="eLv">' + [1, 2, 3, 4].map(function (l) { return '<option value="' + l + '"' + (l === q.stage ? ' selected' : '') + '>' + LV[l] + '</option>'; }).join('') + '</select></div></div>' +
       '<label>题目</label><textarea id="eQ" maxlength="200">' + esc(q.q) + '</textarea><label>选项（点左边圆点选择正确答案）</label>';
     for (var i = 0; i < 4; i++) h += '<div class="opr"><input type="radio" name="eA" value="' + i + '"' + (i === q.answer ? ' checked' : '') + ' style="width:24px;height:24px;flex:none"><span class="lt">' + L[i] + '</span><input class="eo" maxlength="60" value="' + esc(q.options[i]) + '"></div>';
     h += '<label>解析（答完后电视上显示，建议两三句话）</label><textarea id="eX" maxlength="500">' + esc(q.explain || '') + '</textarea>' +
       '<label class="radio"><input type="checkbox" id="eF"' + (q.flag ? ' checked' : '') + ' style="width:22px;height:22px"> 标记为「待核对」（自己没把握的题）</label>' +
+      '<label class="radio"><input type="checkbox" id="eU"' + (q.used ? ' checked' : '') + ' style="width:22px;height:22px"> 标为「已用过」（不再参与抽题）</label>' +
       '<div class="bar"><button class="ghost" id="eNo">取消</button><button class="gold" id="eOk">保存</button></div>';
     openModal(h);
     $('eNo').onclick = closeModal;
     $('eOk').onclick = function () {
       var opts = Array.prototype.map.call(document.querySelectorAll('.eo'), function (x) { return x.value.trim(); });
       var ans = document.querySelector('input[name=eA]:checked');
-      var body = { cat: $('eCat').value, stage: Number($('eLv').value), q: $('eQ').value.trim(), options: opts, answer: ans ? Number(ans.value) : -1, explain: $('eX').value.trim(), flag: $('eF').checked };
+      var body = { cat: $('eCat').value, stage: Number($('eLv').value), q: $('eQ').value.trim(), options: opts, answer: ans ? Number(ans.value) : -1, explain: $('eX').value.trim(), flag: $('eF').checked, used: $('eU').checked };
       api(id ? 'PUT' : 'POST', id ? '/api/questions/' + encodeURIComponent(id) : '/api/questions', body)
         .then(function () { closeModal(); toast('已保存，立即生效'); loadBank(); }).catch(function (e) { toast(e.message, true); });
     };

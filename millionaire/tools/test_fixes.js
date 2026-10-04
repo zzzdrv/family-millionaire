@@ -59,14 +59,11 @@ function call(port, method, url, body, headers) {
   ok(!r.ok && r.error === '现在不能锁定', '揭晓中重复锁定提示「现在不能锁定」，实际：' + r.error);
   r = await A({ type: 'abort' }); ok(r.ok, '中止（顺带取消计时器）');
 
-  /* 3. 换题：新题 id 写入 recentIds */
+  /* 3. 换题：新题展示即标为已用（替代原来的 recentIds 机制） */
   r = await A({ type: 'start', playerId: 'p2' }); ok(r.ok);
-  const before = T.scores.recentIds.slice();
   r = await A({ type: 'swap' }); ok(r.ok, '换题');
   const newId = T.game.qs[T.game.idx].id;
-  ok(T.scores.recentIds.includes(newId), '换进来的新题已写入 recentIds');
-  ok(T.scores.recentIds.length <= 24, 'recentIds 不超过 24');
-  void before;
+  ok(T.questions.find(q => q.id === newId).used === true, '换进来的新题已标为已用');
   r = await A({ type: 'abort' }); ok(r.ok);
 
   /* 4. 口令：timingSafeEqual + 连续失败限频 */

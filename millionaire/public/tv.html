@@ -286,7 +286,7 @@ body{font-family:"Microsoft YaHei","PingFang SC","Noto Sans CJK SC","Noto Sans S
     }).join('　') : '还没有人玩过，等你来创造第一个纪录！';
     return '<div class="screen lobby fade">' +
       '<div class="brand">家庭百万富翁</div>' +
-      '<div class="rules">12 道题 · 最高奖金 <b>' + money(S.ladder[11]) + '</b> · 两道保险线 · 两次求助</div>' +
+      '<div class="rules">12 道题 · 最高奖金 <b>' + money(S.ladder[11]) + '</b> · 两道保险线 · 两次求助 · 题库可用 <b>' + S.avail + '</b> 道</div>' +
       '<div class="cards' + many + '">' + cards + '</div>' +
       '<div class="wait">等待主持人选择选手<span class="dots"></span></div>' +
       '<div class="foot"><div>爸爸累计发出 <b>' + money(S.totalPaid) + '</b></div><div class="rc">' + rc + '</div></div></div>';
