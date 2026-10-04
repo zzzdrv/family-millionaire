@@ -77,6 +77,38 @@ function call(port, method, url, body, headers) {
   c = await call(port, 'GET', '/api/check', undefined, PIN);
   eq(c.status, 401, '连续 10 次失败后，即使正确口令也被暂时拒绝');
 
+  /* 6. ladder 可配置：parseLadder 校验 */
+  const P = T.parseLadder;
+  assert.deepStrictEqual(P([1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 20]), [1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 20]); pass++;
+  assert.deepStrictEqual(P([2, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40]), [2, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40]); pass++;   // 节假日翻倍
+  assert.deepStrictEqual(P([0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10, 12]), [0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10, 12]); pass++; // 允许小数
+  assert.strictEqual(P([1, 2, 3]), null); pass++;                       // 数量不对
+  assert.strictEqual(P([1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 16]), null); pass++; // 不递增
+  assert.strictEqual(P([1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 16, -1]), null); pass++; // 负数
+  assert.strictEqual(P([1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 0]), null); pass++;  // 零
+  assert.strictEqual(P('xxx'), null); pass++;
+  assert.strictEqual(P(undefined), null); pass++;
+  assert.deepStrictEqual(T.LADDER, T.buildLadder(20), 'config 里 maxPrize:20，按算法生成梯子'); pass++;
+  assert.strictEqual(T.fallbackPrize(5), T.LADDER[4], '保险线按 LADDER 下标取，换梯自动跟随'); pass++;
+  assert.strictEqual(T.fallbackPrize(9), T.LADDER[8]); pass++;
+
+  /* 7. buildLadder：按总奖金自动生成梯子 */
+  const B = T.buildLadder;
+  assert.deepStrictEqual(B(200), [5, 10, 15, 25, 35, 50, 65, 85, 105, 130, 160, 200], '总额 200 还原经典梯'); pass++;
+  assert.deepStrictEqual(B(50), [1, 3, 4, 6, 9, 13, 16, 21, 26, 33, 40, 50], '总额 50'); pass++;
+  assert.deepStrictEqual(B(100), [3, 5, 8, 13, 18, 25, 33, 43, 53, 65, 80, 100], '总额 100'); pass++;
+  [20, 50, 100, 200, 15, 1000].forEach(function (m) {
+    const l = B(m);
+    assert.strictEqual(l.length, 12, m + ' 元：12 级'); pass++;
+    assert.strictEqual(l[11], m, m + ' 元：最后一级等于总额'); pass++;
+    for (let i = 1; i < 12; i++) assert.ok(l[i] > l[i - 1], m + ' 元：第 ' + (i + 1) + ' 级递增'); pass++;
+    assert.ok(l.every(x => x > 0), m + ' 元：全正数'); pass++;
+  });
+  assert.strictEqual(B(0), null); pass++;
+  assert.strictEqual(B(-5), null); pass++;
+  assert.strictEqual(B('x'), null); pass++;
+  assert.strictEqual(B(undefined), null); pass++;
+
   console.log('\n全部通过：' + pass + ' 项断言');
   process.exit(0);
 })().catch(e => { console.error('测试失败：', e.message); process.exit(1); });

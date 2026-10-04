@@ -4,22 +4,39 @@
    "id": "p1",
    "name": "太太",
    "avatar": "太",
-   "color": "#f5a623"
+   "color": "#f5a623",
+   "stage": 3
   },
   {
    "id": "p2",
    "name": "大儿子",
    "avatar": "哥",
-   "color": "#4fc3f7"
+   "color": "#4fc3f7",
+   "stage": 3
   },
   {
    "id": "p3",
    "name": "小女儿",
    "avatar": "妹",
-   "color": "#f06292"
+   "color": "#f06292",
+   "stage": 3
   }
  ],
- "history": [],
+ "history": [
+  {
+   "id": "hmuu0ixhd8cdc",
+   "ts": 1791129948674,
+   "playerId": "p1",
+   "playerName": "太太",
+   "prize": 2,
+   "result": "walk",
+   "reached": 2,
+   "wrongAt": 0,
+   "fifty": true,
+   "swap": true,
+   "stage": 3
+  }
+ ],
  "recentIds": [
   "q079",
   "q007",

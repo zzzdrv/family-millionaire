@@ -27,7 +27,32 @@ const DEFAULTS_VERSION = 2;                       // 默认题库版本：2 = �
 const clampStage = (n) => Math.max(1, Math.min(4, n));
 /** 选手学段 L 的三档题目分别取哪个学段：简单档 L-1，中间档 L，最后档 L+1（两端夹住） */
 const tierStages = (L) => [clampStage(L - 1), clampStage(L), clampStage(L + 1)];
-const LADDER = [5, 10, 15, 25, 35, 50, 65, 85, 105, 130, 160, 200];
+const DEFAULT_LADDER = [1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 20];
+/** 校验 config.json 里的 ladder：12 个递增的正数（允许小数）。不合法返回 null，用默认梯 */
+function parseLadder(v) {
+  if (!Array.isArray(v) || v.length !== 12) return null;
+  const xs = v.map(Number);
+  if (xs.some(x => !Number.isFinite(x) || x <= 0)) return null;
+  for (let i = 1; i < 12; i++) if (xs[i] <= xs[i - 1]) return null;
+  return xs;
+}
+/** 按总奖金自动生成梯子：以经典 200 梯的形状（各级占总额比例）缩放，取整后强制递增 */
+const LADDER_SHAPE = [0.025, 0.05, 0.075, 0.125, 0.175, 0.25, 0.325, 0.425, 0.525, 0.65, 0.8, 1];
+function buildLadder(maxPrize) {
+  const M = Number(maxPrize);
+  if (!Number.isFinite(M) || M <= 0) return null;
+  const unit = M >= 20 ? 1 : 0.5;   // 小总额允许 5 毛一档
+  const out = [];
+  for (let i = 0; i < 11; i++) {
+    let v = Math.round(M * LADDER_SHAPE[i] / unit) * unit;
+    v = Math.round(v * 100) / 100;   // 去浮点毛刺
+    if (v <= 0) v = unit;
+    if (i > 0 && v <= out[i - 1]) v = Math.round((out[i - 1] + unit) * 100) / 100;
+    out.push(v);
+  }
+  out.push(M);
+  return out;
+}
 const SAFE = [4, 8];            // 保险线所在题目（从0开始）：第5题、第9题
 const REVEAL_MS = 3800;         // 锁定答案后的悬念时间
 const PALETTE = ['#f5a623', '#4fc3f7', '#f06292', '#81c784', '#ba68c8', '#ff8a65'];
@@ -38,7 +63,23 @@ const cfg = { port: 3000, hostPin: '' };
 try { Object.assign(cfg, JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8'))); } catch (e) { /* 没有配置文件就用默认值 */ }
 if (process.env.PORT) cfg.port = Number(process.env.PORT);
 if (process.env.HOST_PIN !== undefined) cfg.hostPin = process.env.HOST_PIN;
+if (process.env.MAX_PRIZE !== undefined) cfg.maxPrize = process.env.MAX_PRIZE;
 cfg.hostPin = String(cfg.hostPin || '');
+// 奖金梯优先级：显式 ladder 数组 > maxPrize 自动生成 > 默认
+const _explicit = parseLadder(cfg.ladder);
+let LADDER;
+if (_explicit) {
+  LADDER = _explicit;
+} else {
+  if (cfg.ladder !== undefined) console.log('⚠️  config.json 里的 ladder 不合法（需要 12 个递增的正数），已忽略');
+  const _built = cfg.maxPrize !== undefined ? buildLadder(cfg.maxPrize) : null;
+  if (_built) {
+    LADDER = _built;
+  } else {
+    if (cfg.maxPrize !== undefined) console.log('⚠️  config.json 里的 maxPrize 不合法（需要正数），已使用默认奖金梯');
+    LADDER = DEFAULT_LADDER;
+  }
+}
 
 /* ───────────── 文件读写 + 自动备份 ───────────── */
 function readJson(f, fallback) {
@@ -523,7 +564,12 @@ function authed(req, u) {
 function lanIPs() {
   const r = [];
   const ifs = os.networkInterfaces();
-  Object.keys(ifs).forEach(k => (ifs[k] || []).forEach(a => { if (a.family === 'IPv4' && !a.internal) r.push({ name: k, address: a.address }); }));
+  // 虚拟网卡（WireGuard / Docker / VPN 等）：电视连不上这些网段，列出来只会添乱
+  const SKIP = /^(wg|docker|br-|veth|tailscale|tun|tap|vEthernet|ham)/i;
+  Object.keys(ifs).forEach(k => {
+    if (SKIP.test(k)) return;
+    (ifs[k] || []).forEach(a => { if (a.family === 'IPv4' && !a.internal) r.push({ name: k, address: a.address }); });
+  });
   r.sort((a, b) => (b.address.startsWith('192.168.') ? 1 : 0) - (a.address.startsWith('192.168.') ? 1 : 0));
   return r;
 }
@@ -812,8 +858,9 @@ if (require.main === module) {
     console.log('  本机测试：      http://localhost:' + cfg.port + '/   和   /host');
     if (cfg.hostPin) console.log('  主持人口令已开启');
     console.log('  数据目录：      ' + DATA);
+    console.log('  奖金梯：        ' + LADDER.join(' → '));
     console.log('  关闭游戏：      在这个窗口按 Ctrl+C');
     console.log('===========================================================\n');
   });
 }
-module.exports = { server, cfg, _test: { act, view, pickGame, applyImport, get game() { return game; }, get questions() { return questions; }, get scores() { return scores; }, LADDER, fallbackPrize } };
+module.exports = { server, cfg, _test: { act, view, pickGame, applyImport, get game() { return game; }, get questions() { return questions; }, get scores() { return scores; }, LADDER, DEFAULT_LADDER, parseLadder, buildLadder, fallbackPrize } };

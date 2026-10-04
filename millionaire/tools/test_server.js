@@ -57,7 +57,7 @@ function call(port, method, url, body, headers) {
   eq(s.players.length, 3);
   ok(!('clients' in s), '电视视图不含主持信息');
 
-  /* 3. 完整通关：12 题全对 → 200 元 */
+  /* 3. 完整通关：12 题全对 → 20 元 */
   let r = await A({ type: 'start', playerId: 'p1' });
   ok(r.ok, '开始对局');
   for (let i = 0; i < 12; i++) {
@@ -76,7 +76,7 @@ function call(port, method, url, body, headers) {
     r = await A({ type: 'next' }); ok(r.ok);
   }
   s = await st('host');
-  eq(s.phase, 'gameover'); eq(s.outcome.result, 'win'); eq(s.outcome.prize, 200); eq(s.outcome.newRecord, true);
+  eq(s.phase, 'gameover'); eq(s.outcome.result, 'win'); eq(s.outcome.prize, T.LADDER[11], '通关拿满第 12 级'); eq(s.outcome.newRecord, true);
   eq(T.scores.history.length, 1);
   console.log('  通关流程 OK');
 
@@ -97,7 +97,8 @@ function call(port, method, url, body, headers) {
     r = await A({ type: 'finish' }); ok(r.ok);
     return (await st('host')).outcome;
   }
-  const expect = { 0: 0, 3: 0, 4: 0, 5: 35, 7: 35, 8: 35, 9: 105, 11: 105 };
+  const L4 = T.LADDER[4], L8 = T.LADDER[8];   // 保险线跟当前梯子走，不写死数字
+  const expect = { 0: 0, 3: 0, 4: 0, 5: L4, 7: L4, 8: L4, 9: L8, 11: L8 };
   // 为节省时间只测关键几点：第1题、第5题(下标4)、第6题(下标5)、第10题(下标9)
   for (const k of [0, 4, 5, 9]) {
     const o = await playWrongAt(k);
@@ -130,10 +131,10 @@ function call(port, method, url, body, headers) {
     if (i < 5) await A({ type: 'next' });
   }
   s = await st('host');
-  eq(s.phase, 'result'); eq(s.walkPrize, 50);
+  eq(s.phase, 'result'); eq(s.walkPrize, T.LADDER[5]);
   r = await A({ type: 'walk' }); ok(r.ok);
   s = await st('host');
-  eq(s.outcome.result, 'walk'); eq(s.outcome.prize, 50); eq(s.outcome.reached, 6);
+  eq(s.outcome.result, 'walk'); eq(s.outcome.prize, T.LADDER[5]); eq(s.outcome.reached, 6);
   eq(T.scores.history[T.scores.history.length - 1].fifty, true);
   r = await A({ type: 'again' }); ok(r.ok, '再来一局');
   r = await A({ type: 'start', playerId: 'p1' }); ok(!r.ok, '对局中不能重新开始');
@@ -145,7 +146,7 @@ function call(port, method, url, body, headers) {
 
   /* 6. 记分牌统计 */
   const p1 = s.players.find(p => p.id === 'p1');
-  eq(p1.best, 200); eq(p1.wins, 1);
+  eq(p1.best, T.LADDER[11]); eq(p1.wins, 1);
   eq(s.totalPaid, T.scores.history.reduce((a, b) => a + b.prize, 0));
 
   /* 7. 题库增删改 + 校验 */

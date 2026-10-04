@@ -462,8 +462,10 @@ pre.mono{white-space:pre-wrap;word-break:break-all;font-size:13px;color:var(--di
   }
   function renderData() {
     var el = $('pgData'), h = '<h2>数据与设置</h2>';
-    h += '<div class="card"><b>电视打开这个地址</b><pre class="mono">' + (INFO.lan.length ? INFO.lan.map(function (a) { return 'http://' + a.address + ':' + INFO.port + '/   （' + esc(a.name) + '）'; }).join('\n') : '没有检测到局域网地址，请确认电脑已连 Wi-Fi') + '</pre>' +
-      '<div class="small">主持人面板地址是在后面加 /host。如果有多个地址，试试以 192.168 开头的那个。</div></div>';
+    var selfUrl = location.origin + '/';
+    h += '<div class="card"><b>电视打开这个地址</b><pre class="mono">' + esc(selfUrl) + '</pre>' +
+      '<div class="small">你现在就是用这个地址打开主持人面板的，电视打开同一个就行（家里局域网、公网域名都适用；主持人面板在后面加 /host）。下面是本机网卡地址，供参考：</div>' +
+      '<pre class="mono">' + (INFO.lan.length ? INFO.lan.map(function (a) { return 'http://' + a.address + ':' + INFO.port + '/   （' + esc(a.name) + '）'; }).join('\n') : '没有检测到局域网地址') + '</pre></div>';
     h += '<div class="card"><b>导出备份</b><div class="small" style="margin:6px 0 10px">包含全部题库、选手、记分牌和输赢记录，是一个 JSON 文件。</div><button class="gold big" id="exp">导出备份文件</button></div>';
     h += '<div class="card"><b>导入备份</b><div class="small" style="margin:6px 0 10px">选择之前导出的 JSON 文件。导入前会先自动备份当前数据。</div><input type="file" id="impF" accept=".json,application/json"><div id="impInfo" class="small" style="margin-top:8px"></div></div>';
     h += '<div class="card"><b>恢复默认题库</b><div class="small" style="margin:6px 0 10px">把题库还原成最初的 151 题（你新增和修改的题会被替换，不影响记分牌；操作前自动备份）。</div><button class="red" id="rst">恢复默认题库</button></div>';
