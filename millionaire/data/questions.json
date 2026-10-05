@@ -149,7 +149,7 @@
    "answer": 2,
    "explain": "李白是诗仙，杜甫是诗圣，王维是诗佛，李贺是诗鬼。杜甫的诗反映了很多百姓的苦难，被称为\"诗史\"。",
    "stage": 2,
-   "used": false
+   "used": true
   },
   {
    "id": "q011",
@@ -315,7 +315,7 @@
    "answer": 1,
    "explain": "王羲之在东晋永和九年（353年）与朋友们在兰亭聚会，醉酒后挥笔写下了这篇名作。",
    "stage": 3,
-   "used": false
+   "used": true
   },
   {
    "id": "q022",
@@ -618,7 +618,7 @@
    "answer": 0,
    "explain": "氮气大约占空气的78%，氧气只占21%左右。",
    "stage": 2,
-   "used": false
+   "used": true
   },
   {
    "id": "q042",
@@ -933,7 +933,7 @@
    "answer": 3,
    "explain": "很多人以为是悉尼或墨尔本，其实澳大利亚的首都是堪培拉。",
    "stage": 2,
-   "used": false
+   "used": true
   },
   {
    "id": "q063",
@@ -948,7 +948,7 @@
    "answer": 2,
    "explain": "春天的六个节气依次是立春、雨水、惊蛰、春分、清明、谷雨。",
    "stage": 2,
-   "used": false
+   "used": true
   },
   {
    "id": "q064",
@@ -978,7 +978,7 @@
    "answer": 2,
    "explain": "莫高窟在甘肃省敦煌市，里面保存了一千多年的壁画和彩塑。",
    "stage": 2,
-   "used": false
+   "used": true
   },
   {
    "id": "q066",
@@ -1085,7 +1085,7 @@
    "answer": 1,
    "explain": "《蒙娜丽莎》是法国卢浮宫的镇馆之宝，每年有几百万人专门去看它。",
    "stage": 2,
-   "used": false
+   "used": true
   },
   {
    "id": "q073",
@@ -1115,7 +1115,7 @@
    "answer": 0,
    "explain": "2003年10月15日，杨利伟乘神舟五号升空，中国成为第三个独立将人送入太空的国家。",
    "stage": 2,
-   "used": false
+   "used": true
   },
   {
    "id": "q075",
@@ -1356,7 +1356,7 @@
    "answer": 0,
    "explain": "丘比会实现少女们一个愿望，作为交换，她们要成为魔法少女去战斗。",
    "stage": 3,
-   "used": false
+   "used": true
   },
   {
    "id": "q091",
@@ -1371,7 +1371,7 @@
    "answer": 0,
    "explain": "阿尼亚能听见别人心里想的事，所以才能一次次帮\"黄昏\"和\"约尔\"解围。",
    "stage": 2,
-   "used": false
+   "used": true
   },
   {
    "id": "q092",
@@ -1464,7 +1464,7 @@
    "answer": 0,
    "explain": "在纳美克星上，悟空看到好朋友克林被弗利萨杀死，愤怒之下第一次变成了金发的超级赛亚人。",
    "stage": 3,
-   "used": false
+   "used": true
   },
   {
    "id": "q098",
@@ -1539,7 +1539,7 @@
    ],
    "answer": 1,
    "explain": "商鞅在秦孝公支持下变法，奖励耕战、废除世卿世禄，秦国由此强大，为后来统一六国打下基础。",
-   "used": false
+   "used": true
   },
   {
    "id": "q103",
@@ -1719,7 +1719,7 @@
    ],
    "answer": 1,
    "explain": "豌豆是自花授粉、性状分明的植物，孟德尔用它总结出了分离定律和自由组合定律。",
-   "used": false
+   "used": true
   },
   {
    "id": "q115",
@@ -2244,7 +2244,7 @@
    ],
    "answer": 2,
    "explain": "历史正文散布在世界各地，是寻找\"空白的一百年\"真相的关键线索，罗宾从小就立志要读遍它们。",
-   "used": false
+   "used": true
   },
   {
    "id": "q150",
@@ -2674,7 +2674,7 @@
    "answer": 0,
    "explain": "水母没有大脑、心脏和骨骼，靠一张弥散的神经网感知和收缩伞体。原来没脑子也能在地球上活5亿年。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig55508",
@@ -2738,7 +2738,7 @@
    "answer": 0,
    "explain": "萤火虫用特制的发光器发出求偶信号，不同种类的闪光节奏还不一样，答错“暗号”可不行。原来萤火虫的灯光是“情书”。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig5a793",
@@ -2946,7 +2946,7 @@
    "answer": 1,
    "explain": "指纹在胎儿期由皮肤生长的随机褶皱形成，连同卵双胞胎都不一样。原来指纹是“随机生成的密码”。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig5538c",
@@ -2962,7 +2962,7 @@
    "answer": 3,
    "explain": "有科学家认为，阑尾是肠道有益菌的“避难所”，腹泻后能帮肠道恢复菌群。原来阑尾可能是“细菌的诺亚方舟”。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig5da71",
@@ -3074,7 +3074,7 @@
    "answer": 1,
    "explain": "CRISPR能像剪刀一样精确定位并修改DNA，发明者因此获得2020年诺贝尔化学奖。原来改基因可以像“查找替换”一样精准。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig56583",
@@ -3634,7 +3634,7 @@
    "answer": 0,
    "explain": "1206年铁木真统一蒙古各部，被尊为成吉思汗，建立蒙古帝国。他的子孙后来建立了横跨欧亚的大帝国。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig50d4e",
@@ -3682,7 +3682,7 @@
    "answer": 3,
    "explain": "曹操带兵走过没水的地方，士兵口渴难耐。他说前面有大片梅林，士兵想起梅子酸味就不那么渴了，坚持走到了水源。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig58cfb",
@@ -3698,7 +3698,7 @@
    "answer": 0,
    "explain": "蜀汉灭亡后，刘禅在洛阳安享富贵，被问想不想念蜀国，他说“此间乐，不思蜀”。后人用它讽刺忘本的人。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig5917f",
@@ -3714,7 +3714,7 @@
    "answer": 1,
    "explain": "大将廉颇不服蔺相如，蔺相如处处退让。廉颇深受感动，背上荆条登门请罪，两人结成“刎颈之交”。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig55c28",
@@ -3826,7 +3826,7 @@
    "answer": 0,
    "explain": "960年赵匡胤在陈桥驿被部下黄袍加身，拥立为帝，建立北宋。“黄袍加身”说的就是这件事。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig6de78",
@@ -3874,7 +3874,7 @@
    "answer": 3,
    "explain": "北宋神宗时，王安石推行青苗法、募役法等新政，想富国强兵。变法触动了旧贵族利益，最终失败。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig6c71d",
@@ -3954,7 +3954,7 @@
    "answer": 0,
    "explain": "战国时秦国太守李冰父子主持修建都江堰，巧妙地分水治水。两千多年来它一直灌溉着成都平原，至今仍在使用。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig6f12c",
@@ -3970,7 +3970,7 @@
    "answer": 1,
    "explain": "孙膑让田忌用下等马对上等马、上等马对中等马、中等马对下等马，三局两胜赢了齐威王。这是“扬长避短”的经典例子。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig606d1",
@@ -4178,7 +4178,7 @@
    "answer": 2,
    "explain": "1917年列宁领导十月革命，建立了世界上第一个社会主义国家苏俄。它鼓舞了包括中国在内的各国革命者。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig62561",
@@ -5234,7 +5234,7 @@
    "answer": 2,
    "explain": "零下的温度用负数表示，零下5度记作-5℃。负数在中国古代《九章算术》里就开始使用了，比西方早一千多年。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig7e8ab",
@@ -5250,7 +5250,7 @@
    "answer": 0,
    "explain": "4×4=16，所以4的平方是16。（严格说-4的平方也是16，不过选项里没有它。）",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig713ad",
@@ -5266,7 +5266,7 @@
    "answer": 3,
    "explain": "圆规一脚定圆心，两脚之间的距离就是半径。半径决定圆的大小，圆心决定圆的位置，两者缺一不可。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig7cdfe",
@@ -6290,7 +6290,7 @@
    "answer": 0,
    "explain": "2024年6月，嫦娥六号从月球背面带回约1935克月壤，是人类第一次拿到月背的土。月背终年背对地球，通信得靠鹊桥中继星帮忙。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig7b941",
@@ -6322,7 +6322,7 @@
    "answer": 0,
    "explain": "碳中和指二氧化碳的排放和吸收相抵消，排放多少就吸收多少。中国提出力争2060年前实现碳中和，种树、光伏都是帮忙的办法。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig7f405",
@@ -6530,7 +6530,7 @@
    "answer": 0,
    "explain": "中国空间站叫“天宫”，T字构型，由天和核心舱加问天、梦天两个实验舱组成，2022年底全面建成，可以长期住3到6名航天员。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig888ed",
@@ -6626,7 +6626,7 @@
    "answer": 1,
    "explain": "EAST是全超导托卡马克装置，目标是可控核聚变。它曾实现上亿摄氏度高温的长时间约束，朝“点亮”聚变堆又迈进一步。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig86b84",
@@ -6642,7 +6642,7 @@
    "answer": 2,
    "explain": "三颗卫星定出二维位置，第四颗用来校准接收机时钟误差，所以GPS至少要“看到”4颗卫星，楼群密集处信号差就是这个原因。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig809a8",
@@ -6930,7 +6930,7 @@
    "answer": 2,
    "explain": "香农1948年创立信息论，提出了“比特”的概念。今天的手机通信、数据压缩、二维码，根子上都源于他的理论。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnig8e0ae",
@@ -7234,7 +7234,7 @@
    "answer": 2,
    "explain": "炭治郎最初跟随鳞泷左近次学习的是水之呼吸。后来他回忆起父亲的神乐舞，觉醒了威力更强的日之呼吸，也就是火之神神乐，一人兼修两种呼吸法。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnigae1c3",
@@ -7290,15 +7290,15 @@
    "stage": 2,
    "q": "《排球少年》里，日向翔阳憧憬的前辈“小巨人”是哪所学校的王牌？",
    "options": [
-    "及川彻",
-    "木兔光太郎",
-    "小巨人",
-    "牛岛若利"
+    "青叶城西高校",
+    "音驹高校",
+    "乌野高校",
+    "白鸟泽学园"
    ],
    "answer": 2,
    "explain": "小巨人是乌野高中曾经的王牌，身高不高却弹跳惊人。日向翔阳在电视上看到他打球，从此立志要成为像他那样的选手。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnigab941",
@@ -7346,7 +7346,7 @@
    "answer": 1,
    "explain": "琦玉因为太强而烦恼，英雄协会给他起的外号是光头披风侠。他坚持做英雄只是因为兴趣，和那些追逐排名的英雄完全不是一路人。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumniga79ea",
@@ -7378,7 +7378,7 @@
    "answer": 3,
    "explain": "金·富力士是传说中的二星猎人，也是小杰一直想找到的爸爸。小杰参加猎人考试，最初的动力就是想知道爸爸当年看到的风景是什么样的。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumniga438e",
@@ -7426,7 +7426,7 @@
    "answer": 2,
    "explain": "凤凰院凶真是冈部伦太郎给自己起的中二代号，自称疯狂科学家。他平时就用这个名字接电话，朋友们也都习惯了，堪称中二病的天花板。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumniga56f1",
@@ -7554,7 +7554,7 @@
    "answer": 1,
    "explain": "阿姆罗·雷是初代高达RX-78-2的驾驶员，也是史上第一位高达主角。他和宿敌夏亚从一年战争打到逆袭的夏亚，相爱相杀了十几年。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumniga57bf",
@@ -7570,7 +7570,7 @@
    "answer": 2,
    "explain": "螺旋力是《天元突破》里的核心设定，代表着人类突破极限的意志。主角团的红莲螺岩就是靠螺旋力驱动，连银河都能当成回旋镖扔出去。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumniga3a1a",
@@ -7618,7 +7618,7 @@
    "answer": 1,
    "explain": "面码本名本间芽衣子，是超和平Busters里最小的成员。她意外去世后，灵魂一直留在人间，心愿是让当年的小伙伴们重新和好。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumnigae9d5",
@@ -7698,7 +7698,7 @@
    "answer": 1,
    "explain": "剑心脸颊上的十字伤，是他亲手杀死的第一任妻子雪代巴留下的。这道疤既是他杀人剑术的证明，也是他立志不再杀人的起点。",
    "flag": false,
-   "used": false
+   "used": true
   },
   {
    "id": "umuumniga97c5",

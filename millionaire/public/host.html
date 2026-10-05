@@ -482,7 +482,7 @@ pre.mono{white-space:pre-wrap;word-break:break-all;font-size:13px;color:var(--di
       }).catch(function (e) { toast(e.message, true); });
     };
     $('rst').onclick = function () {
-      if (!confirm('确定把题库恢复成默认的 100 题吗？')) return;
+      if (!confirm('确定把题库恢复成默认的 151 题吗？')) return;
       api('POST', '/api/questions/reset', {}).then(function (j) { toast('已恢复 ' + j.count + ' 题'); Q = null; }).catch(function (e) { toast(e.message, true); });
     };
     $('impF').onchange = function () {
