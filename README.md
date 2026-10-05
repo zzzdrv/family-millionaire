@@ -46,6 +46,86 @@ node tools/build_questions.js   # 重新生成并校验默认题库
 
 题库源码在 `tools/build_questions.js`，生成的 `defaults/questions.default.json` 是默认题库。
 
+## 部署到 linux 机器
+
+### 克隆仓库
+
+`sudo mkdir -p /opt/millionaire && sudo chown $USER:$USER /opt/millionaire`
+`git clone https://github.com/zzzdrv/family-millionaire.git /opt/millionaire`
+`cd /opt/millionaire/millionaire`
+
+### 安装 nodejs
+
+```
+curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+apt install -y nodejs
+node -v   # 应显示 v22.x
+```
+
+### 运行
+
+`node server.js`
+
+### systemd 保活
+
+```
+1. 建专用用户并授权（别用 root 跑服务）
+useradd -r -s /usr/sbin/nologin millionaire
+chown -R millionaire:millionaire /opt/millionaire
+
+2. 写 systemd unit 文件
+cat > /etc/systemd/system/millionaire.service <<'EOF'
+[Unit]
+Description=家庭百万富翁游戏
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=millionaire
+WorkingDirectory=/opt/millionaire/millionaire
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+3. 重载、启用、启动
+systemctl daemon-reload
+systemctl enable --now millionaire
+
+4. 验证
+systemctl status millionaire --no-pager   # 看 Active: active (running)
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000/   # 应返回 200
+journalctl -u millionaire -n 20           # 看启动日志，确认奖金梯、地址打印正常
+```
+
+### 更新代码
+
+```
+cd /opt/millionaire/millionaire && git pull
+systemctl restart millionaire
+```
+
+### NPM 反代
+
+创建 access list：
+name：millionaire
+Satisfy Any 保持关闭
+Authentication 标签页 → 点 Add → 输入用户名和密码
+
+创建 proxy host:
+millionaire.yourdomain.com
+http 局域网ip 3000
+access list: millionaire
+开启 Websockets Support
+
+### cloudflare tunnel
+
+Networking - Tunnels - 进入Tunnel "home" - add route - Published application
+
 ## 许可证
 
 [MIT](LICENSE)，代码和题库都适用。
