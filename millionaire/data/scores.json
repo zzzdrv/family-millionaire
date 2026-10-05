@@ -22,33 +22,6 @@
    "stage": 3
   }
  ],
- "history": [
-  {
-   "id": "hmuu0ixhd8cdc",
-   "ts": 1791129948674,
-   "playerId": "p1",
-   "playerName": "太太",
-   "prize": 2,
-   "result": "walk",
-   "reached": 2,
-   "wrongAt": 0,
-   "fifty": true,
-   "swap": true,
-   "stage": 3
-  }
- ],
- "recentIds": [
-  "q079",
-  "q007",
-  "q056",
-  "q029",
-  "q087",
-  "q035",
-  "q013",
-  "q060",
-  "q021",
-  "q075",
-  "q044",
-  "q094"
- ]
+ "history": [],
+ "recentIds": []
 }
