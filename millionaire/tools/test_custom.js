@@ -1,5 +1,5 @@
 'use strict';
-// v3.8 用户积累题库测试：node tools/test_custom.js
+// v3.9 用户积累题库测试：node tools/test_custom.js
 // 使用临时数据目录，不会碰 ./data
 const fs = require('fs');
 const os = require('os');
@@ -41,7 +41,7 @@ const Q = (cat, stage, q, answer) => ({ cat, stage, q, options: ['对', '错1', 
 
   /* 1. 手动加题：默认记入 custom，选项被确定性打乱 */
   let r = await call(port, 'POST', '/api/questions', Q('文史', 1, '手动加的第一题？', 0));
-  eq(r.status, 200); eq(r.json.customAdded, 1, '默认记入原始题库');
+  eq(r.status, 200); eq(r.json.customAdded, 1, '默认记入默认题库');
   const q1 = r.json.question;
   ok(q1.id[0] === 'u', 'u* ID');
   eq(new Set(q1.options).size, 4, '选项仍是4个');
@@ -60,7 +60,7 @@ const Q = (cat, stage, q, answer) => ({ cat, stage, q, options: ['对', '错1', 
   eq(r.status, 200); eq(r.json.customAdded, 0, 'remember=false 不记入');
   eq(readCustom().length, 1, 'custom 仍是1道');
 
-  /* 4. 编辑 u* 题 → 同步回 custom；编辑 q* 题 → custom 不动 */
+  /* 4. 编辑 u* 题 → 同步回 custom；编辑 q* 题 → custom 记修正单，并自动重建默认题库 */
   r = await call(port, 'PUT', '/api/questions/' + q1.id, Q('文史', 1, '手动加的第一题？（改过）', 0));
   eq(r.status, 200);
   cus = readCustom();
@@ -68,12 +68,18 @@ const Q = (cat, stage, q, answer) => ({ cat, stage, q, options: ['对', '错1', 
   const qBase = T.questions.find(q => q.id === 'q001');
   r = await call(port, 'PUT', '/api/questions/q001', { cat: qBase.cat, stage: qBase.stage, q: qBase.q, options: qBase.options, answer: qBase.answer, explain: '改过的解析' });
   eq(r.status, 200);
-  eq(readCustom().length, 1, '改出厂题不碰 custom');
+  cus = readCustom();
+  const ov001 = cus.find(q => q.id === 'q001');
+  ok(ov001 && ov001.explain === '改过的解析' && !ov001.deleted, '出厂题编辑记修正单');
+  ok(T.lastRebuild.ok, 'custom 变动后自动重建成功');
+  eq(T.DEFAULTS.find(q => q.id === 'q001').explain, '改过的解析', '重建后的默认题库也是修正版');
 
-  /* 5. 删除 u* 题 → custom 同步删除 */
+  /* 5. 删除 u* 题 → custom 同步删除（q001 修正单不受影响） */
   r = await call(port, 'DELETE', '/api/questions/' + q1.id);
   eq(r.status, 200);
-  eq(readCustom().length, 0, 'custom 同步删除');
+  cus = readCustom();
+  eq(cus.length, 1, 'custom 同步删除 u* 题');
+  eq(cus[0].id, 'q001', 'q001 修正单还在');
 
   /* 6. 导入合并：新题记入 custom；重复导入不重复记入；出厂题不记入 */
   const impQs = [Q('通识', 1, '导入的新题A？', 1), Q('通识', 1, '导入的新题B？', 2),
@@ -81,17 +87,18 @@ const Q = (cat, stage, q, answer) => ({ cat, stage, q, options: ['对', '错1', 
   r = await call(port, 'POST', '/api/import', { mode: 'merge', data: { app: 'family-millionaire', questions: impQs }, remember: true });
   eq(r.status, 200); eq(r.json.summary.questions, 2, '出厂题干重复被跳过');
   eq(r.json.summary.customAdded, 2, '2道新题记入 custom');
-  eq(readCustom().length, 2);
+  eq(readCustom().length, 3, 'custom 3道（q001修正单+2道新题）');
   r = await call(port, 'POST', '/api/import', { mode: 'merge', data: { app: 'family-millionaire', questions: impQs }, remember: true });
   eq(r.json.summary.questions, 0, '重复导入 live 加0');
   eq(r.json.summary.customAdded, 0, '重复导入 custom 加0');
 
-  /* 7. 补充新题：删掉一道出厂题再补充回来 */
+  /* 7. 删除出厂题 → 记删除标记，补充新题不再复活 */
   const delId = 'q010';
   await call(port, 'DELETE', '/api/questions/' + delId);
+  ok(readCustom().some(q => q.id === delId && q.deleted === true), 'custom 有删除标记');
   r = await call(port, 'POST', '/api/questions/supplement', {});
-  eq(r.status, 200); eq(r.json.added, 1, '补充回1道');
-  ok(T.questions.some(q => q.id === delId), 'ID 保留');
+  eq(r.status, 200); eq(r.json.added, 0, '删除标记的出厂题不再被补充回来');
+  ok(!T.questions.some(q => q.id === delId), 'live 里没有它');
   r = await call(port, 'POST', '/api/questions/supplement', {});
   eq(r.json.added, 0, '无新题时加0');
 
@@ -118,17 +125,21 @@ const Q = (cat, stage, q, answer) => ({ cat, stage, q, options: ['对', '错1', 
   eq(r.status, 200); eq(r.json.summary.customRestored, nCus, '覆盖导入恢复 custom');
   eq(readCustom().length, nCus);
 
-  /* 10. build 脚本：base + custom 合并去重（用干净的 custom 只放2道） */
+  /* 10. build 脚本：base + custom 合并去重 + 修正单 + 删除标记（用干净的 custom） */
   const cusFile = path.join(tmp, 'questions.custom.json');
   const dupStem = T.DEFAULTS[0].q;
+  const baseArr = JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'questions.base.json'), 'utf8'));
+  const baseLen = baseArr.length;
+  const b001 = Object.assign({}, baseArr.find(q => q.id === 'q001'), { explain: '修正版解析' });
   const cleanCus = [
     { id: 'u-dup-1', cat: '文史', stage: 1, q: dupStem, options: ['a', 'b', 'c', 'd'], answer: 0, explain: '' },
     { id: 'u-new-1', cat: '理科', stage: 2, q: 'build测试新题？', options: ['甲', '乙', '丙', '丁'], answer: 3, explain: '' },
+    b001,                        // 修正单：q001 采用修正版
+    { id: 'q002', deleted: true }, // 删除标记：q002 跳过
   ];
   fs.writeFileSync(cusFile, JSON.stringify(cleanCus));
-  // 用临时 defaults 输出验证（不污染包内 defaults）：拷一份脚本逻辑太重，改用环境变量覆写输出路径——脚本不支持，改为直接跑并校验包内 defaults 不变
+  // 沙盒跑 build：去掉 MILLIONAIRE_DATA 让脚本用沙盒相对路径（data/、defaults/），不污染包内 defaults
   const before = fs.readFileSync(path.join(ROOT, 'defaults', 'questions.default.json'), 'utf8');
-  // 在沙盒目录跑 build：复制脚本依赖的相对路径结构
   const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'mill-build-'));
   fs.mkdirSync(path.join(sandbox, 'tools'), { recursive: true });
   fs.mkdirSync(path.join(sandbox, 'data'), { recursive: true });
@@ -136,14 +147,19 @@ const Q = (cat, stage, q, answer) => ({ cat, stage, q, options: ['对', '错1', 
   fs.copyFileSync(path.join(ROOT, 'tools', 'questions.base.json'), path.join(sandbox, 'tools', 'questions.base.json'));
   fs.copyFileSync(path.join(ROOT, 'tools', 'build_questions.js'), path.join(sandbox, 'tools', 'build_questions.js'));
   fs.copyFileSync(cusFile, path.join(sandbox, 'data', 'questions.custom.json'));
-  const out = execFileSync('node', [path.join(sandbox, 'tools', 'build_questions.js')], { encoding: 'utf8' });
+  const senv = Object.assign({}, process.env); delete senv.MILLIONAIRE_DATA;
+  const out = execFileSync('node', [path.join(sandbox, 'tools', 'build_questions.js')], { encoding: 'utf8', env: senv });
   ok(/custom 采纳 1 题/.test(out), 'custom 采纳1题输出：' + out.split('\n')[1]);
   ok(/与 base 重复/.test(out), '跳过与 base 重复的有计数');
+  ok(/修正单 1/.test(out), '修正单有计数');
+  ok(/删除标记 1/.test(out), '删除标记有计数');
   const gen = JSON.parse(fs.readFileSync(path.join(sandbox, 'defaults', 'questions.default.json'), 'utf8'));
-  eq(gen.questions.length, T.DEFAULTS.length + 1, '总数 = base + 采纳的1道');
+  eq(gen.questions.length, baseLen, '总数 = base - 删除1 + 采纳1');
   ok(!('version' in gen), '死 version 字段已删');
   ok(gen.questions.some(q => q.id === 'u-new-1'), '新题在生成物里');
   ok(!gen.questions.some(q => q.id === 'u-dup-1'), '重复题干被跳过');
+  eq(gen.questions.find(q => q.id === 'q001').explain, '修正版解析', '修正单生效');
+  ok(!gen.questions.some(q => q.id === 'q002'), '删除标记生效');
   const after = fs.readFileSync(path.join(ROOT, 'defaults', 'questions.default.json'), 'utf8');
   eq(after, before, '包内 defaults 未被测试污染');
 

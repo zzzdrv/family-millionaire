@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
+const { execFileSync } = require('child_process');
 
 const ROOT = __dirname;
 const PUB = path.join(ROOT, 'public');
@@ -24,7 +25,7 @@ const F_BASE = path.join(ROOT, 'tools', 'questions.base.json');   // 出厂题�
 
 const CATS = ['文史', '理科', '通识', '二次元'];
 const STAGES = ['小学', '初中', '高中', '大学'];   // 题目/选手的学段，序号 1~4
-const VERSION = '3.8';                            // 程序版本：数据页底部显示，发版时改这里一处即可
+const VERSION = '3.9.1';                          // 程序版本：数据页底部显示，发版时改这里一处即可
 const DEFAULT_STAGE = 3;                          // 选手没设置学段时的默认值（高中）
 const DEFAULTS_VERSION = 2;                       // 默认题库版本：2 = 带学段标签（题目数量见 defaults/questions.default.json，不写死）
 const clampStage = (n) => Math.max(1, Math.min(4, n));
@@ -123,14 +124,42 @@ const uid = (p) => (p || 'u') + Date.now().toString(36) + crypto.randomBytes(2).
 const BASE = (() => { try { const j = JSON.parse(fs.readFileSync(F_BASE, 'utf8')); return Array.isArray(j) ? j : []; } catch (e) { return []; } })();
 
 /* ───────────── 用户积累题库 data/questions.custom.json ─────────────
- * 面板导入/加题时（勾选"同时记入原始题库"）append；build 时与 base 合并进默认题库。
- * 条目格式与题库一致，id 为 u*（一路带到 defaults 和 live，永久稳定）。 */
+ * 面板导入/加题时（勾选"同时记入默认题库"）append；build 时与 base 合并进默认题库。
+ * 条目格式与题库一致：
+ *   - id 为 u*：用户积累的题（一路带到 defaults 和 live，永久稳定）
+ *   - id 为 q*：对出厂题的"修正单"——面板编辑 q* 题时写入同 ID 修正版，build 时优先采用
+ *   - { id:'q*', deleted:true }：删除标记——面板删除 q* 题时写入，build/supplement 跳过它
+ * 每次写入后自动后台重建 defaults/ 并热加载，面板无需手动跑脚本。 */
 let customQuestions = [];
+let lastRebuild = { ok: true, count: 0 };   // 最近一次自动重建的结果
 function loadCustom() {
   const r = readJson(F_CUS, null);
   customQuestions = (r && Array.isArray(r)) ? r : [];
 }
-function saveCustom() { backup(F_CUS, true); writeJson(F_CUS, customQuestions); }
+/** 后台重建默认题库：跑 tools/build_questions.js，然后把新的 defaults 热加载进内存。
+ * 失败不抛错（面板操作照常成功），调用方可根据返回值提示。
+ * 生成物位置与 build 脚本一致：测试模式（MILLIONAIRE_DATA）下写数据目录，不污染程序目录。 */
+function rebuildDefaults() {
+  try {
+    execFileSync(process.execPath, [path.join(ROOT, 'tools', 'build_questions.js')], { timeout: 60000, stdio: 'pipe' });
+    const fDef = process.env.MILLIONAIRE_DATA ? path.join(DATA, 'questions.default.json') : F_DEF;
+    const j = JSON.parse(fs.readFileSync(fDef, 'utf8'));
+    if (j && Array.isArray(j.questions)) {
+      DEFAULTS.length = 0;
+      j.questions.forEach(q => DEFAULTS.push(q));
+      return { ok: true, count: DEFAULTS.length };
+    }
+    return { ok: false, error: '生成物格式不对' };
+  } catch (e) {
+    console.error('自动重建默认题库失败：', e.message);
+    return { ok: false, error: e.message };
+  }
+}
+function saveCustom() {
+  backup(F_CUS, true);
+  writeJson(F_CUS, customQuestions);
+  lastRebuild = rebuildDefaults();   // custom 一变，默认题库立刻跟上
+}
 /** 把一批题记入 custom：题干已在 custom 或已在当前已构建的 defaults 里则跳过。返回实际记入数。 */
 function appendCustom(list) {
   const have = new Set(customQuestions.map(q => String(q.q).trim()));
@@ -146,11 +175,22 @@ function appendCustom(list) {
   if (n) saveCustom();
   return n;
 }
-function updateCustom(q) {
+/** 按 ID 写入 custom：存在则更新（u* 更新积累题，q* 记修正单），不存在则追加。 */
+function upsertCustom(q) {
   const i = customQuestions.findIndex(x => x.id === q.id);
-  if (i < 0) return false;
   const c = clone(q); delete c.used;
-  customQuestions[i] = c; saveCustom();
+  if (i >= 0) customQuestions[i] = c;
+  else customQuestions.push(c);
+  saveCustom();
+  return true;
+}
+/** 出厂题删除标记：build/supplement 跳过该 ID。撤销办法：手动删 custom.json 对应条目后重建。 */
+function tombstoneCustom(id) {
+  const i = customQuestions.findIndex(x => x.id === id);
+  const t = { id, deleted: true };
+  if (i >= 0) customQuestions[i] = t;
+  else customQuestions.push(t);
+  saveCustom();
   return true;
 }
 function removeCustom(id) {
@@ -733,6 +773,7 @@ function applyImport(mode, data, remember) {
     if (!Array.isArray(data.customQuestions)) throw new Error('customQuestions 必须是数组');
     cus = [];
     data.customQuestions.forEach((o, i) => {
+      if (o && o.deleted === true && o.id) { cus.push({ id: String(o.id), deleted: true }); return; }  // 删除标记：原样恢复
       const r = normQuestion(o);
       if (r.err) errors.push('积累题库第' + (i + 1) + '道题：' + r.err); else { if (!r.q.id) r.q.id = uid('u'); cus.push(r.q); }
     });
@@ -766,7 +807,7 @@ function applyImport(mode, data, remember) {
         ids.add(q.id); keys.add(q.q); questions.push(q); added.push(q); n++;
       });
       summary.questions = n;
-      if (remember !== false) summary.customAdded = appendCustom(added);   // 默认记入原始题库
+      if (remember !== false) summary.customAdded = appendCustom(added);   // 默认记入默认题库
     }
     const idMap = {};                // 导入文件里的选手 id → 本地选手 id（按名字合并）
     if (pls) {
@@ -840,14 +881,15 @@ async function api(req, res, u) {
     r.q.options = sh.options; r.q.answer = sh.answer;
     questions.push(r.q);
     let customAdded = 0;
-    if (body.remember !== false) customAdded = appendCustom([r.q]);   // 默认记入原始题库
+    if (body.remember !== false) customAdded = appendCustom([r.q]);   // 默认记入默认题库
     saveQuestions(); scheduleBroadcast();
     return send(res, 200, { question: r.q, customAdded });
   }
   if (p === '/api/questions/reset' && m === 'POST') {
+    const rb = rebuildDefaults();   // 先重建（覆盖用户替换了 base.json 的情况），再恢复
     backup(F_Q, true);
     questions = clone(DEFAULTS); qMeta.defaultsVersion = DEFAULTS_VERSION; saveQuestions(true); scheduleBroadcast();
-    return send(res, 200, { count: questions.length });
+    return send(res, 200, { count: questions.length, rebuilt: rb.ok });
   }
   if (p === '/api/questions/reuse' && m === 'POST') {
     // 把已用题目重新设为可用：不传 ids 则全部恢复，传 ids 数组则只恢复这些
@@ -859,7 +901,9 @@ async function api(req, res, u) {
     return send(res, 200, { ok: true, count: n });
   }
   if (p === '/api/questions/supplement' && m === 'POST') {
-    // 从默认题库补充新题：defaults 有、live 没有的题干 → 加入 live（ID 原样保留，u* 题以后编辑可同步回 custom）
+    // 从默认题库补充新题：先重建（覆盖用户替换了 base.json 的情况），
+    // 再把 defaults 有、live 没有的题干加入 live（ID 原样保留，u* 题以后编辑可同步回 custom）
+    const rb = rebuildDefaults();
     const have = new Set(questions.map(q => String(q.q).trim()));
     const ids = new Set(questions.map(q => q.id));
     let n = 0;
@@ -879,7 +923,7 @@ async function api(req, res, u) {
     const baseStems = new Set(BASE.map(q => String(q.q).trim()));
     const cands = questions.filter(q => !baseStems.has(String(q.q).trim()));
     const n = appendCustom(cands);
-    return send(res, 200, { added: n, total: customQuestions.length });
+    return send(res, 200, { added: n, total: DEFAULTS.length });   // total = 重建后的默认题库题数
   }
   let mm = p.match(/^\/api\/questions\/([^/]+)$/);
   if (mm) {
@@ -890,13 +934,14 @@ async function api(req, res, u) {
       const r = normQuestion(body);
       if (r.err) return send(res, 400, { error: r.err });
       r.q.id = id; questions[i] = r.q;
-      if (id[0] === 'u') updateCustom(r.q);   // 用户积累的题：同步回原始题库
+      upsertCustom(r.q);   // 同步记入默认题库：u* 更新积累题，q* 记一条"修正单"（build 时优先采用）
       saveQuestions();
       return send(res, 200, { question: r.q });
     }
     if (m === 'DELETE') {
       questions.splice(i, 1);
       if (id[0] === 'u') removeCustom(id);   // 否则下次"补充新题"会复活它
+      else tombstoneCustom(id);              // 出厂题：记删除标记，以后重建/补充不再出现
       saveQuestions();
       return send(res, 200, { ok: true });
     }
@@ -1032,4 +1077,4 @@ if (require.main === module) {
     console.log('===========================================================\n');
   });
 }
-module.exports = { server, cfg, _test: { act, view, pickGame, normCatW, applyImport, appendCustom, updateCustom, removeCustom, DEFAULTS, BASE, get customQuestions() { return customQuestions; }, get game() { return game; }, get questions() { return questions; }, get scores() { return scores; }, LADDER, DEFAULT_LADDER, parseLadder, buildLadder, fallbackPrize } };
+module.exports = { server, cfg, _test: { act, view, pickGame, normCatW, applyImport, appendCustom, upsertCustom, removeCustom, tombstoneCustom, rebuildDefaults, DEFAULTS, BASE, get customQuestions() { return customQuestions; }, get lastRebuild() { return lastRebuild; }, get game() { return game; }, get questions() { return questions; }, get scores() { return scores; }, LADDER, DEFAULT_LADDER, parseLadder, buildLadder, fallbackPrize } };
