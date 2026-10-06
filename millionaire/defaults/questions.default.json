@@ -1,6 +1,5 @@
 {
  "app": "family-millionaire",
- "version": 2,
  "questions": [
   {
    "id": "q001",

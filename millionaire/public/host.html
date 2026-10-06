@@ -455,13 +455,14 @@ pre.mono{white-space:pre-wrap;word-break:break-all;font-size:13px;color:var(--di
     h += '<label>解析（答完后电视上显示，建议两三句话）</label><textarea id="eX" maxlength="500">' + esc(q.explain || '') + '</textarea>' +
       '<label class="radio"><input type="checkbox" id="eF"' + (q.flag ? ' checked' : '') + ' style="width:22px;height:22px"> 标记为「待核对」（自己没把握的题）</label>' +
       '<label class="radio"><input type="checkbox" id="eU"' + (q.used ? ' checked' : '') + ' style="width:22px;height:22px"> 标为「已用过」（不再参与抽题）</label>' +
+      (id ? '' : '<label class="radio"><input type="checkbox" id="eR" checked style="width:22px;height:22px"> 同时记入原始题库（以后重建默认题库时保留）</label>') +
       '<div class="bar"><button class="ghost" id="eNo">取消</button><button class="gold" id="eOk">保存</button></div>';
     openModal(h);
     $('eNo').onclick = closeModal;
     $('eOk').onclick = function () {
       var opts = Array.prototype.map.call(document.querySelectorAll('.eo'), function (x) { return x.value.trim(); });
       var ans = document.querySelector('input[name=eA]:checked');
-      var body = { cat: $('eCat').value, stage: Number($('eLv').value), q: $('eQ').value.trim(), options: opts, answer: ans ? Number(ans.value) : -1, explain: $('eX').value.trim(), flag: $('eF').checked, used: $('eU').checked };
+      var body = { cat: $('eCat').value, stage: Number($('eLv').value), q: $('eQ').value.trim(), options: opts, answer: ans ? Number(ans.value) : -1, explain: $('eX').value.trim(), flag: $('eF').checked, used: $('eU').checked, remember: id ? undefined : $('eR').checked };
       api(id ? 'PUT' : 'POST', id ? '/api/questions/' + encodeURIComponent(id) : '/api/questions', body)
         .then(function () { closeModal(); toast('已保存，立即生效'); loadBank(); }).catch(function (e) { toast(e.message, true); });
     };
@@ -539,6 +540,8 @@ pre.mono{white-space:pre-wrap;word-break:break-all;font-size:13px;color:var(--di
     h += '<div class="card"><b>导出备份</b><div class="small" style="margin:6px 0 10px">包含全部题库、选手、记分牌和输赢记录，是一个 JSON 文件。</div><button class="gold big" id="exp">导出备份文件</button></div>';
     h += '<div class="card"><b>导入备份</b><div class="small" style="margin:6px 0 10px">选择之前导出的 JSON 文件。导入前会先自动备份当前数据。</div><input type="file" id="impF" accept=".json,application/json"><div id="impInfo" class="small" style="margin-top:8px"></div></div>';
     h += '<div class="card"><b>恢复默认题库</b><div class="small" style="margin:6px 0 10px">把题库还原成默认的 ' + INFO.defaultsCount + ' 题（你新增和修改的题会被替换，不影响记分牌；操作前自动备份）。</div><button class="red" id="rst">恢复默认题库</button></div>';
+    h += '<div class="card"><b>补充新题</b><div class="small" style="margin:6px 0 10px">把默认题库里有、本机题库里没有的题目补充进来（比如新版多了几百道题，点一下就进题库，不用重新导入）。</div><button class="gold big" id="supp">从默认题库补充新题</button></div>';
+    h += '<div class="card"><b>记入原始题库</b><div class="small" style="margin:6px 0 10px">把本机题库里新增的题目（出厂题库里没有的）一次性记入原始题库，以后重建默认题库时保留。可重复点，不会重复记入。</div><button class="big" id="csync">把新增题目记入原始题库</button></div>';
     h += '<div class="card small">数据保存在电脑上的：<br>' + esc(INFO.dataDir) + '<br>里面的 questions.json、scores.json 就是全部数据，拷走这个文件夹也是备份。每次修改前，系统会在 backups 子目录里自动留一份带时间的备份。' + (INFO.pin ? '<br>主持人口令：已开启。' : '<br>主持人口令：未设置（想设置就在 config.json 里填 hostPin）。') + '</div>';
     h += '<div class="small" style="text-align:center;color:var(--dim);margin-top:14px">家庭百万富翁 v' + esc(INFO.version || '?') + ' · 默认题库 ' + INFO.defaultsCount + ' 题</div>';
     el.innerHTML = h;
@@ -556,6 +559,12 @@ pre.mono{white-space:pre-wrap;word-break:break-all;font-size:13px;color:var(--di
       if (!confirm('确定把题库恢复成默认的 ' + INFO.defaultsCount + ' 题吗？')) return;
       api('POST', '/api/questions/reset', {}).then(function (j) { toast('已恢复 ' + j.count + ' 题'); Q = null; }).catch(function (e) { toast(e.message, true); });
     };
+    $('supp').onclick = function () {
+      api('POST', '/api/questions/supplement', {}).then(function (j) { toast(j.added ? '补充了 ' + j.added + ' 道新题，当前共 ' + j.total + ' 题' : '没有新题可补充，当前共 ' + j.total + ' 题'); Q = null; }).catch(function (e) { toast(e.message, true); });
+    };
+    $('csync').onclick = function () {
+      api('POST', '/api/custom/sync', {}).then(function (j) { toast(j.added ? '已记入原始题库 ' + j.added + ' 道，共积累 ' + j.total + ' 道' : '没有新增题目需要记入，已积累 ' + j.total + ' 道'); }).catch(function (e) { toast(e.message, true); });
+    };
     $('impF').onchange = function () {
       var f = this.files && this.files[0]; if (!f) return;
       var rd = new FileReader();
@@ -566,13 +575,15 @@ pre.mono{white-space:pre-wrap;word-break:break-all;font-size:13px;color:var(--di
         if (!nq && !np && !nh) { $('impInfo').innerHTML = '<span class="warn">文件里没有找到题库、选手或记录。</span>'; return; }
         openModal('<h2>导入备份</h2><div class="info">文件「' + esc(f.name) + '」包含：<br>题目 ' + nq + ' 道，选手 ' + np + ' 位，输赢记录 ' + nh + ' 条</div>' +
           '<div class="small">合并：只补充本机没有的题目/记录，不会覆盖已有数据。<br>覆盖：用文件里的内容整体替换本机对应的数据。</div>' +
+          '<label class="radio"><input type="checkbox" id="iRem" checked style="width:22px;height:22px"> 合并时同时记入原始题库（以后重建默认题库时保留；覆盖模式不用勾）</label>' +
           '<div class="bar"><button class="ghost" id="iNo">取消</button><button class="blue" id="iM">合并</button><button class="red" id="iR">覆盖</button></div>');
         $('iNo').onclick = closeModal;
         function go(mode) {
           if (mode === 'replace' && !confirm('覆盖会替换本机对应的数据（导入前已自动备份）。继续吗？')) return;
-          api('POST', '/api/import', { mode: mode, data: data }).then(function (j) {
+          api('POST', '/api/import', { mode: mode, data: data, remember: mode === 'merge' ? $('iRem').checked : undefined }).then(function (j) {
             closeModal(); var s = j.summary, t = [];
             if (s.questions !== undefined) t.push('题目 ' + s.questions); if (s.players !== undefined) t.push('选手 ' + s.players); if (s.history !== undefined) t.push('记录 ' + s.history);
+            if (s.customAdded) t.push('记入原始题库 ' + s.customAdded + ' 道'); if (s.customRestored) t.push('原始题库已恢复 ' + s.customRestored + ' 道');
             toast('导入完成：' + t.join('，')); Q = null; $('impF').value = ''; $('impInfo').textContent = '';
           }).catch(function (e) { closeModal(); alert(e.message); });
         }

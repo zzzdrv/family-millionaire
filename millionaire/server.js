@@ -18,11 +18,13 @@ const BACKUPS = path.join(DATA, 'backups');
 const F_Q = path.join(DATA, 'questions.json');
 const F_S = path.join(DATA, 'scores.json');
 const F_G = path.join(DATA, 'game.json');
+const F_CUS = path.join(DATA, 'questions.custom.json');   // 用户积累的题（面板导入/加题时记入，build 时合并进默认题库）
 const F_DEF = path.join(ROOT, 'defaults', 'questions.default.json');
+const F_BASE = path.join(ROOT, 'tools', 'questions.base.json');   // 出厂题库（build 输入之一，一次性补录时做差集）
 
 const CATS = ['文史', '理科', '通识', '二次元'];
 const STAGES = ['小学', '初中', '高中', '大学'];   // 题目/选手的学段，序号 1~4
-const VERSION = '3.7';                            // 程序版本：数据页底部显示，发版时改这里一处即可
+const VERSION = '3.8';                            // 程序版本：数据页底部显示，发版时改这里一处即可
 const DEFAULT_STAGE = 3;                          // 选手没设置学段时的默认值（高中）
 const DEFAULTS_VERSION = 2;                       // 默认题库版本：2 = 带学段标签（题目数量见 defaults/questions.default.json，不写死）
 const clampStage = (n) => Math.max(1, Math.min(4, n));
@@ -117,6 +119,68 @@ const DEFAULTS = (readJson(F_DEF, { questions: [] }).questions) || [];
 const clone = o => JSON.parse(JSON.stringify(o));
 const uid = (p) => (p || 'u') + Date.now().toString(36) + crypto.randomBytes(2).toString('hex');
 
+/* 出厂题库（build 输入之一，一次性补录时与 live 做差集）。缺失则视为空，不中断启动。 */
+const BASE = (() => { try { const j = JSON.parse(fs.readFileSync(F_BASE, 'utf8')); return Array.isArray(j) ? j : []; } catch (e) { return []; } })();
+
+/* ───────────── 用户积累题库 data/questions.custom.json ─────────────
+ * 面板导入/加题时（勾选"同时记入原始题库"）append；build 时与 base 合并进默认题库。
+ * 条目格式与题库一致，id 为 u*（一路带到 defaults 和 live，永久稳定）。 */
+let customQuestions = [];
+function loadCustom() {
+  const r = readJson(F_CUS, null);
+  customQuestions = (r && Array.isArray(r)) ? r : [];
+}
+function saveCustom() { backup(F_CUS, true); writeJson(F_CUS, customQuestions); }
+/** 把一批题记入 custom：题干已在 custom 或已在当前已构建的 defaults 里则跳过。返回实际记入数。 */
+function appendCustom(list) {
+  const have = new Set(customQuestions.map(q => String(q.q).trim()));
+  const inDef = new Set(DEFAULTS.map(q => String(q.q).trim()));
+  let n = 0;
+  list.forEach(q => {
+    const stem = String(q.q).trim();
+    if (have.has(stem) || inDef.has(stem)) return;
+    const c = clone(q); delete c.used;
+    if (!c.id) c.id = uid('u');
+    customQuestions.push(c); have.add(stem); n++;
+  });
+  if (n) saveCustom();
+  return n;
+}
+function updateCustom(q) {
+  const i = customQuestions.findIndex(x => x.id === q.id);
+  if (i < 0) return false;
+  const c = clone(q); delete c.used;
+  customQuestions[i] = c; saveCustom();
+  return true;
+}
+function removeCustom(id) {
+  const i = customQuestions.findIndex(x => x.id === id);
+  if (i < 0) return false;
+  customQuestions.splice(i, 1); saveCustom();
+  return true;
+}
+
+/* 按题干 hash 确定性打乱选项（FNV-1a + mulberry32）：同一题干永远得到同一顺序，
+ * 面板手动加题时调用，防止"正确答案总在 A"的 pattern。 */
+function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function shuffleOptionsByStem(q) {
+  const rnd = mulberry32(hashStr(q.q));
+  const idx = [0, 1, 2, 3];
+  for (let i = idx.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    const t = idx[i]; idx[i] = idx[j]; idx[j] = t;
+  }
+  return { options: idx.map(k => q.options[k]), answer: idx.indexOf(q.answer) };
+}
+
 const notices = [];   // 启动时发现的问题/升级说明，主持人面板会显示出来
 /** 读取 JSON；文件存在但损坏时不再覆盖：先改名留证，再尝试用最近的备份恢复 */
 function loadStrict(f, label, valid) {
@@ -179,6 +243,7 @@ function migrateQuestions(list) {
     writeJson(F_Q, { defaultsVersion: DEFAULTS_VERSION, questions });
   }
 }
+loadCustom();
 function saveQuestions(force) { backup(F_Q, force); writeJson(F_Q, { defaultsVersion: qMeta.defaultsVersion, questions }); }
 /** 题目一旦被展示就标记为已用，不再参与抽题（全家一起看，全局烧题） */
 function markUsed(id) {
@@ -632,9 +697,9 @@ function lanIPs() {
 
 /* ───────────── 导入导出 ───────────── */
 function buildExport() {
-  return { app: 'family-millionaire', version: 2, exportedAt: new Date().toISOString(), questions, players: scores.players, history: scores.history, recentIds: scores.recentIds };
+  return { app: 'family-millionaire', version: 2, exportedAt: new Date().toISOString(), questions, players: scores.players, history: scores.history, recentIds: scores.recentIds, customQuestions };
 }
-function applyImport(mode, data) {
+function applyImport(mode, data, remember) {
   if (!data || typeof data !== 'object') throw new Error('文件内容不对');
   if (data.app && data.app !== 'family-millionaire') throw new Error('这不是本游戏的备份文件');
   const errors = [];
@@ -663,10 +728,19 @@ function applyImport(mode, data) {
       if (!r) errors.push('第' + (i + 1) + '条记录格式不对'); else hist.push(r);
     });
   }
+  let cus = null;
+  if (data.customQuestions !== undefined) {
+    if (!Array.isArray(data.customQuestions)) throw new Error('customQuestions 必须是数组');
+    cus = [];
+    data.customQuestions.forEach((o, i) => {
+      const r = normQuestion(o);
+      if (r.err) errors.push('积累题库第' + (i + 1) + '道题：' + r.err); else { if (!r.q.id) r.q.id = uid('u'); cus.push(r.q); }
+    });
+  }
   if (errors.length) throw new Error('备份文件有问题，没有导入：\n' + errors.slice(0, 6).join('\n') + (errors.length > 6 ? '\n……共 ' + errors.length + ' 处' : ''));
-  if (qs === null && pls === null && hist === null) throw new Error('文件里没有找到题库、选手或记录');
+  if (qs === null && pls === null && hist === null && cus === null) throw new Error('文件里没有找到题库、选手或记录');
 
-  backup(F_Q, true); backup(F_S, true);
+  backup(F_Q, true); backup(F_S, true); backup(F_CUS, true);
   const summary = {};
   const fixIds = (arr, existing, prefix) => {
     const seen = new Set(existing);
@@ -676,6 +750,7 @@ function applyImport(mode, data) {
 
   if (mode === 'replace') {
     if (qs) { fixIds(qs, [], 'u'); questions = qs; qMeta.defaultsVersion = DEFAULTS_VERSION; summary.questions = qs.length; }
+    if (cus) { fixIds(cus, [], 'u'); customQuestions = cus; saveCustom(); summary.customRestored = cus.length; }
     if (pls) { fixIds(pls, [], 'p'); assignColors(pls); scores.players = pls.slice(0, MAX_PLAYERS); summary.players = scores.players.length; }
     if (hist) { scores.history = hist; summary.history = hist.length; }
     if (Array.isArray(data.recentIds)) scores.recentIds = data.recentIds.map(String).slice(-24);
@@ -684,12 +759,14 @@ function applyImport(mode, data) {
       const keys = new Set(questions.map(q => q.q.trim()));
       const ids = new Set(questions.map(q => q.id));
       let n = 0;
+      const added = [];
       qs.forEach(q => {
         if (keys.has(q.q)) return;
         if (!q.id || ids.has(q.id)) q.id = uid('u');
-        ids.add(q.id); keys.add(q.q); questions.push(q); n++;
+        ids.add(q.id); keys.add(q.q); questions.push(q); added.push(q); n++;
       });
       summary.questions = n;
+      if (remember !== false) summary.customAdded = appendCustom(added);   // 默认记入原始题库
     }
     const idMap = {};                // 导入文件里的选手 id → 本地选手 id（按名字合并）
     if (pls) {
@@ -759,8 +836,13 @@ async function api(req, res, u) {
     const r = normQuestion(body);
     if (r.err) return send(res, 400, { error: r.err });
     r.q.id = uid('u');
-    questions.push(r.q); saveQuestions(); scheduleBroadcast();
-    return send(res, 200, { question: r.q });
+    const sh = shuffleOptionsByStem(r.q);   // 确定性打乱，防止"正确答案总在 A"
+    r.q.options = sh.options; r.q.answer = sh.answer;
+    questions.push(r.q);
+    let customAdded = 0;
+    if (body.remember !== false) customAdded = appendCustom([r.q]);   // 默认记入原始题库
+    saveQuestions(); scheduleBroadcast();
+    return send(res, 200, { question: r.q, customAdded });
   }
   if (p === '/api/questions/reset' && m === 'POST') {
     backup(F_Q, true);
@@ -776,6 +858,29 @@ async function api(req, res, u) {
     scheduleBroadcast();
     return send(res, 200, { ok: true, count: n });
   }
+  if (p === '/api/questions/supplement' && m === 'POST') {
+    // 从默认题库补充新题：defaults 有、live 没有的题干 → 加入 live（ID 原样保留，u* 题以后编辑可同步回 custom）
+    const have = new Set(questions.map(q => String(q.q).trim()));
+    const ids = new Set(questions.map(q => q.id));
+    let n = 0;
+    DEFAULTS.forEach(d => {
+      if (have.has(String(d.q).trim())) return;
+      const c = clone(d);
+      if (!c.id || ids.has(c.id)) c.id = uid('u');
+      c.used = false;
+      questions.push(c); ids.add(c.id); have.add(String(c.q).trim()); n++;
+    });
+    if (n) saveQuestions();
+    scheduleBroadcast();
+    return send(res, 200, { added: n, total: questions.length });
+  }
+  if (p === '/api/custom/sync' && m === 'POST') {
+    // 一次性补录：live 里题干不在出厂题库（base）中的 → 记入 custom.json。幂等，随便点。
+    const baseStems = new Set(BASE.map(q => String(q.q).trim()));
+    const cands = questions.filter(q => !baseStems.has(String(q.q).trim()));
+    const n = appendCustom(cands);
+    return send(res, 200, { added: n, total: customQuestions.length });
+  }
   let mm = p.match(/^\/api\/questions\/([^/]+)$/);
   if (mm) {
     const id = decodeURIComponent(mm[1]);
@@ -784,10 +889,17 @@ async function api(req, res, u) {
     if (m === 'PUT') {
       const r = normQuestion(body);
       if (r.err) return send(res, 400, { error: r.err });
-      r.q.id = id; questions[i] = r.q; saveQuestions();
+      r.q.id = id; questions[i] = r.q;
+      if (id[0] === 'u') updateCustom(r.q);   // 用户积累的题：同步回原始题库
+      saveQuestions();
       return send(res, 200, { question: r.q });
     }
-    if (m === 'DELETE') { questions.splice(i, 1); saveQuestions(); return send(res, 200, { ok: true }); }
+    if (m === 'DELETE') {
+      questions.splice(i, 1);
+      if (id[0] === 'u') removeCustom(id);   // 否则下次"补充新题"会复活它
+      saveQuestions();
+      return send(res, 200, { ok: true });
+    }
   }
 
   /* 记分牌 / 选手 */
@@ -846,7 +958,7 @@ async function api(req, res, u) {
   if (p === '/api/import' && m === 'POST') {
     try {
       const mode = body.mode === 'replace' ? 'replace' : 'merge';
-      const summary = applyImport(mode, body.data);
+      const summary = applyImport(mode, body.data, body.remember);
       scheduleBroadcast();
       return send(res, 200, { ok: true, mode, summary });
     } catch (e) { return send(res, 400, { error: e.message }); }
@@ -920,4 +1032,4 @@ if (require.main === module) {
     console.log('===========================================================\n');
   });
 }
-module.exports = { server, cfg, _test: { act, view, pickGame, normCatW, applyImport, DEFAULTS, get game() { return game; }, get questions() { return questions; }, get scores() { return scores; }, LADDER, DEFAULT_LADDER, parseLadder, buildLadder, fallbackPrize } };
+module.exports = { server, cfg, _test: { act, view, pickGame, normCatW, applyImport, appendCustom, updateCustom, removeCustom, DEFAULTS, BASE, get customQuestions() { return customQuestions; }, get game() { return game; }, get questions() { return questions; }, get scores() { return scores; }, LADDER, DEFAULT_LADDER, parseLadder, buildLadder, fallbackPrize } };
