@@ -22,8 +22,9 @@ const F_DEF = path.join(ROOT, 'defaults', 'questions.default.json');
 
 const CATS = ['文史', '理科', '通识', '二次元'];
 const STAGES = ['小学', '初中', '高中', '大学'];   // 题目/选手的学段，序号 1~4
+const VERSION = '3.7';                            // 程序版本：数据页底部显示，发版时改这里一处即可
 const DEFAULT_STAGE = 3;                          // 选手没设置学段时的默认值（高中）
-const DEFAULTS_VERSION = 2;                       // 默认题库版本：2 = 带学段标签、共 151 题
+const DEFAULTS_VERSION = 2;                       // 默认题库版本：2 = 带学段标签（题目数量见 defaults/questions.default.json，不写死）
 const clampStage = (n) => Math.max(1, Math.min(4, n));
 /** 选手学段 L 的三档题目分别取哪个学段：简单档 L-1，中间档 L，最后档 L+1（两端夹住） */
 const tierStages = (L) => [clampStage(L - 1), clampStage(L), clampStage(L + 1)];
@@ -224,6 +225,21 @@ function normQuestion(o) {
   if (explain.length > 500) return { err: '解析太长（最多500字）' };
   return { q: { id: o.id ? String(o.id) : '', cat, stage, q, options, answer, explain, flag: !!o.flag, used: !!o.used } };
 }
+/* 出题类别权重：{文史:0~100, 理科:0~100, 通识:0~100, 二次元:0~100}。
+ * undefined/null → null（用默认：每档每类各一题）；全 0 或非法 → null（调用方判错）。 */
+function normCatW(o) {
+  if (o === undefined || o === null) return null;
+  if (typeof o !== 'object') return null;
+  const w = {}; let sum = 0;
+  for (const c of CATS) {
+    let v = Number(o[c]);
+    if (!Number.isFinite(v) || v < 0) v = 0;
+    v = Math.min(100, v);
+    w[c] = v; sum += v;
+  }
+  return sum > 0 ? w : null;
+}
+
 function normPlayer(o, keepId) {
   if (!o || typeof o !== 'object') return { err: '格式不对' };
   const name = String(o.name == null ? '' : o.name).trim();
@@ -235,7 +251,10 @@ function normPlayer(o, keepId) {
   const color = /^#[0-9a-f]{6}$/i.test(String(o.color || '')) ? String(o.color) : '';
   let stage = Number(o.stage);
   if (![1, 2, 3, 4].includes(stage)) stage = DEFAULT_STAGE;
-  return { p: { id: keepId || (o.id ? String(o.id) : ''), name, avatar, color, stage } };
+  const p = { id: keepId || (o.id ? String(o.id) : ''), name, avatar, color, stage };
+  const cw = normCatW(o.catW);
+  if (cw) p.catW = cw;   // 选手记住的出题偏好；PUT 没带 catW 时由调用方保留旧值
+  return { p };
 }
 function normRecord(o) {
   if (!o || typeof o !== 'object') return null;
@@ -258,10 +277,12 @@ function normRecord(o) {
 /* ───────────── 抽题 ───────────── */
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
-/** stage = 选手学段(1~4)。三档题目的学段依次是 L-1 / L / L+1，每档每个分类各一题。
+/** stage = 选手学段(1~4)。三档题目的学段依次是 L-1 / L / L+1。
+ *  catW 为空 → 每档每类各一题（旧行为）；不为空 → 按权重随机抽类别（0 权重的类不出）。
  *  只从未用过的题里抽（used=true 的题是之前对局里展示过的，全家都看过答案了）。 */
-function pickGame(stage) {
+function pickGame(stage, catW) {
   const ts = tierStages(clampStage(Number(stage) || DEFAULT_STAGE));
+  const w = normCatW(catW);   // null = 默认均等
   const used = new Set();
   const take = (fn) => {
     const all = questions.filter(q => !used.has(q.id) && !q.used && fn(q));
@@ -270,22 +291,45 @@ function pickGame(stage) {
     used.add(q.id);
     return q;
   };
+  const sampleCat = () => {   // 按权重抽一个类别
+    const total = CATS.reduce((s, c) => s + w[c], 0);
+    let r = Math.random() * total;
+    for (const c of CATS) { r -= w[c]; if (r < 0) return c; }
+    return CATS[CATS.length - 1];
+  };
   const tiers = [];
   for (let t3 = 0; t3 < 3; t3++) {
     const level = ts[t3];
     const tier = [];
-    for (const cat of shuffle(CATS.slice())) {
-      const q = take(x => x.stage === level && x.cat === cat);
+    const pushOne = (cat) => {
+      let q = take(x => x.stage === level && x.cat === cat);
+      if (!q && w) {   // 该类在该档没题了，按权重在别的类里补
+        for (const c2 of shuffle(CATS.filter(c => c !== cat && w[c] > 0))) {
+          q = take(x => x.stage === level && x.cat === c2);
+          if (q) break;
+        }
+      }
       if (q) tier.push(q);
+    };
+    if (!w) {
+      for (const cat of shuffle(CATS.slice())) pushOne(cat);
+    } else {
+      for (let s = 0; s < 4; s++) pushOne(sampleCat());
     }
-    while (tier.length < 4) {      // 某类题目不够时，用别的类补，尽量补最少的类
+    while (tier.length < 4) {      // 某类题目不够时补齐
       const cnt = {}; tier.forEach(t => { cnt[t.cat] = (cnt[t.cat] || 0) + 1; });
       let q = null;
-      for (const cat of CATS.slice().sort((a, b) => (cnt[a] || 0) - (cnt[b] || 0))) {
+      // 默认：补最少的类；加权：0 权重的类靠后，优先补有权重里最少的类
+      const order = w
+        ? CATS.slice().sort((a, b) => ((w[a] > 0 ? 0 : 1) - (w[b] > 0 ? 0 : 1)) || ((cnt[a] || 0) - (cnt[b] || 0)))
+        : CATS.slice().sort((a, b) => (cnt[a] || 0) - (cnt[b] || 0));
+      for (const cat of order) {
         q = take(x => x.stage === level && x.cat === cat);
         if (q) break;
       }
-      q = q || take(x => Math.abs(x.stage - level) === 1) || take(() => true);
+      q = q || take(x => Math.abs(x.stage - level) === 1 && (!w || w[x.cat] > 0))
+            || take(x => !w || w[x.cat] > 0)
+            || take(() => true);
       if (!q) return { ok: false, error: '可用题目不够 12 道（玩过的题不会再出现）。请到「题库」添加新题，或把已用题目重新设为可用。' };
       tier.push(q);
     }
@@ -332,6 +376,7 @@ function playerStats(p) {
   const h = scores.history.filter(r => r.playerId === p.id);
   return {
     id: p.id, name: p.name, avatar: p.avatar, color: p.color, stage: p.stage,
+    catW: p.catW || null,   // 记住的出题偏好（主持人面板用）
     best: h.reduce((m, r) => Math.max(m, r.prize), 0),
     games: h.length,
     wins: h.filter(r => r.result === 'win').length,
@@ -353,6 +398,7 @@ function endGame(result, prize, reached) {
     id: uid('h'), ts: Date.now(), playerId: game.playerId, playerName: game.playerName,
     prize, result, reached, wrongAt: result === 'wrong' ? game.idx + 1 : 0,
     fifty: !game.lifelines.fifty, swap: !game.lifelines.swap, stage: game.playerStage || 0,
+    catMix: game.catW || null,   // 本局出题权重，复盘备查
   };
   scores.history.push(rec);
   saveScores();
@@ -360,13 +406,22 @@ function endGame(result, prize, reached) {
   game.outcome = { result, prize, reached, newRecord: prize > 0 && prize > before, before };
 }
 
-function startGame(playerId) {
+function startGame(playerId, catW, remember) {
   const pl = scores.players.find(p => p.id === playerId);
   if (!pl) return { ok: false, error: '找不到这位选手' };
-  const pick = pickGame(pl.stage);
+  let w = null;
+  if (catW === undefined || catW === null) {
+    w = normCatW(pl.catW);   // 没指定就用选手记住的偏好（没有则默认均等）
+  } else {
+    w = normCatW(catW);
+    if (!w) return { ok: false, error: '至少要选一个出题类别' };
+  }
+  if (remember && w) { pl.catW = w; saveScores(); }
+  const pick = pickGame(pl.stage, w);
   if (!pick.ok) return pick;
   game = {
     phase: 'question', playerId: pl.id, playerName: pl.name, playerAvatar: pl.avatar, playerColor: pl.color, playerStage: pl.stage,
+    catW: w,   // 本局出题权重（null = 默认均等），存档备查
     qs: pick.qs, usedIds: pick.qs.map(q => q.id), idx: 0, selected: null, removed: [],
     lifelines: { fifty: true, swap: true }, lastCorrect: null, outcome: null, startedAt: Date.now(),
   };
@@ -380,11 +435,11 @@ function act(a) {
   switch (a && a.type) {
     case 'start': {
       if (g.phase !== 'lobby' && g.phase !== 'gameover') return bad('本局还没结束');
-      return startGame(String(a.playerId || ''));
+      return startGame(String(a.playerId || ''), a.catW, !!a.remember);
     }
     case 'again': {
       if (g.phase !== 'gameover') return bad('现在不能再来一局');
-      return startGame(g.playerId);
+      return startGame(g.playerId, g.catW || undefined);   // 沿用上局的出题设置
     }
     case 'select': {
       if (g.phase !== 'question') return bad('现在不能选答案');
@@ -482,6 +537,7 @@ function view(role) {
   if (g.phase === 'lobby') return out;
 
   out.player = { id: g.playerId, name: g.playerName, avatar: g.playerAvatar, color: g.playerColor };
+  out.catMix = g.catW || null;   // 本局出题权重（主持人面板展示，电视端忽略）
   out.idx = g.idx;
   out.lifelines = g.lifelines;
   out.selected = g.selected;
@@ -680,7 +736,7 @@ async function api(req, res, u) {
 
   if (p === '/api/check' && m === 'GET') return send(res, 200, { ok: true });
   if (p === '/api/info' && m === 'GET') {
-    return send(res, 200, { port: cfg.port, lan: lanIPs(), pin: !!cfg.hostPin, dataDir: DATA, cats: CATS, stages: STAGES });
+    return send(res, 200, { port: cfg.port, lan: lanIPs(), pin: !!cfg.hostPin, dataDir: DATA, cats: CATS, stages: STAGES, defaultsCount: DEFAULTS.length, version: VERSION });
   }
   if (p === '/api/export' && m === 'GET') {
     const d = new Date();
@@ -760,6 +816,7 @@ async function api(req, res, u) {
       if (r.err) return send(res, 400, { error: r.err });
       if (!r.p.color) r.p.color = scores.players[i].color;
       if (body.stage === undefined) r.p.stage = scores.players[i].stage;
+      if (body.catW === undefined && scores.players[i].catW) r.p.catW = scores.players[i].catW;   // 编辑选手时保留出题偏好；传 catW:null 可清除
       scores.players[i] = r.p;
       scores.history.forEach(h => { if (h.playerId === id) h.playerName = r.p.name; });
       saveScores(); scheduleBroadcast();
@@ -863,4 +920,4 @@ if (require.main === module) {
     console.log('===========================================================\n');
   });
 }
-module.exports = { server, cfg, _test: { act, view, pickGame, applyImport, get game() { return game; }, get questions() { return questions; }, get scores() { return scores; }, LADDER, DEFAULT_LADDER, parseLadder, buildLadder, fallbackPrize } };
+module.exports = { server, cfg, _test: { act, view, pickGame, normCatW, applyImport, DEFAULTS, get game() { return game; }, get questions() { return questions; }, get scores() { return scores; }, LADDER, DEFAULT_LADDER, parseLadder, buildLadder, fallbackPrize } };

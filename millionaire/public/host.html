@@ -22,10 +22,20 @@ input,select,textarea{width:100%;background:#0b1030;border:2px solid var(--line)
 input:focus,select:focus,textarea:focus{border-color:var(--gold)}
 textarea{resize:vertical;min-height:70px}
 label{display:block;font-size:14px;color:var(--dim);margin:12px 0 4px}
+a{color:#9bf2bf;text-decoration:underline;text-underline-offset:2px}
+a:hover{color:#d3ffe6}
 .wrap{max-width:860px;margin:0 auto;padding:12px}
 h2{font-size:20px;margin:6px 0 10px}
 .card{background:var(--panel);border:2px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
 .row{display:flex;gap:10px;align-items:center}
+.cwrow{display:flex;gap:10px;align-items:center;margin:8px 0}
+.cwrow label{width:76px;flex:none;margin:0;font-size:16px;color:#fff;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.cwrow input[type=checkbox]{width:auto;margin:0;flex:none}
+.cwrow input[type=range]{flex:1;width:auto;min-width:0;background:none;border:none;padding:0}
+.cwrow input[type=range]:focus{border:none}
+.cwrow .pct{width:52px;flex:none;text-align:right;font-size:14px;color:#9fb2e8}
+.cwl{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;color:#fff}
+.cwl input[type=checkbox]{width:auto;margin:0;flex:none}
 .row>*{flex:1}
 .row>.fix{flex:none}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -224,7 +234,7 @@ pre.mono{white-space:pre-wrap;word-break:break-all;font-size:13px;color:var(--di
 
     if (S.phase === 'lobby') {
       h += '<h2>请选择上场的选手</h2><div class="pl">' + S.players.map(function (p) {
-        return '<button class="pbtn" data-start="' + esc(p.id) + '"><div class="av" style="background:' + esc(p.color) + '">' + esc(p.avatar) + '</div><div class="n">' + esc(p.name) + '</div><div class="s">' + LV[p.stage] + ' · 最高 ¥' + p.best + ' · ' + p.games + ' 局</div></button>';
+        return '<button class="pbtn" data-start="' + esc(p.id) + '"><div class="av" style="background:' + esc(p.color) + '">' + esc(p.avatar) + '</div><div class="n">' + esc(p.name) + '</div><div class="s">' + LV[p.stage] + ' · 最高 ¥' + p.best + ' · ' + p.games + ' 局' + (p.catW ? ' · 已设出题偏好' : '') + '</div></button>';
       }).join('') + '</div>';
       h += '<div class="card" style="margin-top:14px"><div class="small">选好人后电视会立刻进入第 1 题。选手口头回答，你在这里点选项、再「锁定」即可。</div></div>';
       h += muteBtn();
@@ -233,6 +243,7 @@ pre.mono{white-space:pre-wrap;word-break:break-all;font-size:13px;color:var(--di
 
     var q = S.question, p = S.player, ph = S.phase;
     h += '<div class="card"><div class="qh"><b style="font-size:18px">' + esc(p.name) + '</b><span class="tag ' + CATCLS[q.cat] + '">' + esc(q.cat) + '</span><span class="tag lv">题：' + LV[q.stage] + '</span><span class="tag lv">选手：' + LV[p.stage] + '</span>' +
+      (S.catMix ? '<span class="tag lv">出题：' + esc(mixLabel(S.catMix)) + '</span>' : '') +
       (ph !== 'gameover' ? '<span>第 ' + (S.idx + 1) + ' 题 · ¥' + S.ladder[S.idx] + '</span>' : '') + '</div>';
 
     if (ph === 'gameover') {
@@ -282,9 +293,68 @@ pre.mono{white-space:pre-wrap;word-break:break-all;font-size:13px;color:var(--di
     el.innerHTML = h; bindPlay();
   }
   function muteBtn() { return '<div class="card"><button class="ghost" data-act="mute">电视音效：' + (S.muted ? '已静音（点击开启）' : '开启中（点击静音）') + '</button></div>'; }
+  /* 出题权重 → "文史25%·理科25%·通识25%·二次元25%" */
+  function mixLabel(w) {
+    if (!w) return '';
+    var t = CATS.reduce(function (s, c) { return s + (w[c] || 0); }, 0) || 1;
+    return CATS.map(function (c) { return c + Math.round(100 * (w[c] || 0) / t) + '%'; }).join('·');
+  }
+  /* ───── 出题设置：选完选手后调类别权重 ───── */
+  function openSetup(pid) {
+    var p = null;
+    S.players.forEach(function (x) { if (x.id === pid) p = x; });
+    if (!p) { toast('找不到这位选手', true); return; }
+    var w0 = p.catW || { '文史': 100, '理科': 100, '通识': 100, '二次元': 100 };
+    var h = '<h2>给「' + esc(p.name) + '」设置出题</h2>' +
+      '<div class="small" style="margin-bottom:10px">勾选要出的类别，拖动条调整比例（0% 的类别一题不出）。不调就是四类均等，和以前一样。</div>' +
+      '<div id="cwRows">' + CATS.map(function (c) {
+        var on = (w0[c] || 0) > 0, v = on ? w0[c] : 100;
+        return '<div class="cwrow" data-c="' + c + '"><label><input type="checkbox"' + (on ? ' checked' : '') + '> ' + c + '</label>' +
+          '<input type="range" min="0" max="100" value="' + v + '"' + (on ? '' : ' disabled') + '>' +
+          '<span class="pct"></span></div>';
+      }).join('') + '</div>' +
+      '<div style="margin-top:10px"><label class="cwl"><input type="checkbox" id="cwRem"' + (p.catW ? ' checked' : '') + '> <span>记住为「' + esc(p.name) + '」的默认设置</span></label></div>' +
+      (p.catW ? '<div class="small"><a href="javascript:void(0)" id="cwClear">清除已记住的偏好</a></div>' : '') +
+      '<div class="bar" style="margin-top:12px"><button class="gold big" id="cwGo">开始游戏</button> <button class="ghost big" id="cwCancel">取消</button></div>';
+    openModal(h);
+    var rows = Array.prototype.slice.call(document.querySelectorAll('#cwRows .cwrow'));
+    function cur() {
+      var o = {};
+      rows.forEach(function (r) {
+        var c = r.getAttribute('data-c');
+        o[c] = r.querySelector('input[type=checkbox]').checked ? Number(r.querySelector('input[type=range]').value) : 0;
+      });
+      return o;
+    }
+    function paint() {
+      var o = cur(), t = CATS.reduce(function (s, c) { return s + o[c]; }, 0);
+      rows.forEach(function (r) {
+        r.querySelector('.pct').textContent = t ? Math.round(100 * o[r.getAttribute('data-c')] / t) + '%' : '—';
+      });
+    }
+    rows.forEach(function (r) {
+      var cb = r.querySelector('input[type=checkbox]'), rg = r.querySelector('input[type=range]');
+      cb.onchange = function () { rg.disabled = !cb.checked; paint(); };
+      rg.oninput = paint;
+    });
+    paint();
+    $('cwCancel').onclick = closeModal;
+    $('cwGo').onclick = function () {
+      var o = cur(), t = CATS.reduce(function (s, c) { return s + o[c]; }, 0), rem = $('cwRem').checked;
+      if (!t) { toast('至少要选一个类别', true); return; }
+      closeModal();
+      act({ type: 'start', playerId: pid, catW: o, remember: rem });
+    };
+    var clr = $('cwClear');
+    if (clr) clr.onclick = function () {
+      api('PUT', '/api/players/' + encodeURIComponent(pid), { name: p.name, avatar: p.avatar, color: p.color, stage: p.stage, catW: null })
+        .then(function () { S.players.forEach(function (x) { if (x.id === pid) delete x.catW; }); toast('已清除记住的偏好'); closeModal(); renderPlay(); })
+        .catch(function (e) { toast(e.message, true); });
+    };
+  }
   function bindPlay() {
     var el = $('pgPlay');
-    Array.prototype.forEach.call(el.querySelectorAll('[data-start]'), function (b) { b.onclick = function () { act({ type: 'start', playerId: b.getAttribute('data-start') }); }; });
+    Array.prototype.forEach.call(el.querySelectorAll('[data-start]'), function (b) { b.onclick = function () { openSetup(b.getAttribute('data-start')); }; });
     Array.prototype.forEach.call(el.querySelectorAll('[data-sel]'), function (b) { b.onclick = function () { act({ type: 'select', i: Number(b.getAttribute('data-sel')) }); }; });
     Array.prototype.forEach.call(el.querySelectorAll('[data-act]'), function (b) {
       b.onclick = function () {
@@ -468,8 +538,9 @@ pre.mono{white-space:pre-wrap;word-break:break-all;font-size:13px;color:var(--di
       '<pre class="mono">' + (INFO.lan.length ? INFO.lan.map(function (a) { return 'http://' + a.address + ':' + INFO.port + '/   （' + esc(a.name) + '）'; }).join('\n') : '没有检测到局域网地址') + '</pre></div>';
     h += '<div class="card"><b>导出备份</b><div class="small" style="margin:6px 0 10px">包含全部题库、选手、记分牌和输赢记录，是一个 JSON 文件。</div><button class="gold big" id="exp">导出备份文件</button></div>';
     h += '<div class="card"><b>导入备份</b><div class="small" style="margin:6px 0 10px">选择之前导出的 JSON 文件。导入前会先自动备份当前数据。</div><input type="file" id="impF" accept=".json,application/json"><div id="impInfo" class="small" style="margin-top:8px"></div></div>';
-    h += '<div class="card"><b>恢复默认题库</b><div class="small" style="margin:6px 0 10px">把题库还原成最初的 151 题（你新增和修改的题会被替换，不影响记分牌；操作前自动备份）。</div><button class="red" id="rst">恢复默认题库</button></div>';
+    h += '<div class="card"><b>恢复默认题库</b><div class="small" style="margin:6px 0 10px">把题库还原成默认的 ' + INFO.defaultsCount + ' 题（你新增和修改的题会被替换，不影响记分牌；操作前自动备份）。</div><button class="red" id="rst">恢复默认题库</button></div>';
     h += '<div class="card small">数据保存在电脑上的：<br>' + esc(INFO.dataDir) + '<br>里面的 questions.json、scores.json 就是全部数据，拷走这个文件夹也是备份。每次修改前，系统会在 backups 子目录里自动留一份带时间的备份。' + (INFO.pin ? '<br>主持人口令：已开启。' : '<br>主持人口令：未设置（想设置就在 config.json 里填 hostPin）。') + '</div>';
+    h += '<div class="small" style="text-align:center;color:var(--dim);margin-top:14px">家庭百万富翁 v' + esc(INFO.version || '?') + ' · 默认题库 ' + INFO.defaultsCount + ' 题</div>';
     el.innerHTML = h;
     $('exp').onclick = function () {
       fetch('/api/export', { headers: { 'x-host-pin': PIN }, cache: 'no-store' }).then(function (r) {
@@ -482,7 +553,7 @@ pre.mono{white-space:pre-wrap;word-break:break-all;font-size:13px;color:var(--di
       }).catch(function (e) { toast(e.message, true); });
     };
     $('rst').onclick = function () {
-      if (!confirm('确定把题库恢复成默认的 151 题吗？')) return;
+      if (!confirm('确定把题库恢复成默认的 ' + INFO.defaultsCount + ' 题吗？')) return;
       api('POST', '/api/questions/reset', {}).then(function (j) { toast('已恢复 ' + j.count + ' 题'); Q = null; }).catch(function (e) { toast(e.message, true); });
     };
     $('impF').onchange = function () {

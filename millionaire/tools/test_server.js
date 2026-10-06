@@ -151,7 +151,7 @@ function call(port, method, url, body, headers) {
 
   /* 7. 题库增删改 + 校验 */
   const sc = await call(port, 'GET', '/api/questions');
-  eq(sc.json.questions.length, 151);
+  eq(sc.json.questions.length, T.DEFAULTS.length);
   ok(sc.json.questions.every(q => [1, 2, 3, 4].includes(q.stage) && !('level' in q)), '每道题都有学段、没有旧的 level 字段');
   const good = { cat: '通识', stage: 2, q: '测试题？', options: ['甲', '乙', '丙', '丁'], answer: 2, explain: '测试解析' };
   r = await call(port, 'POST', '/api/questions', good); eq(r.status, 200);
@@ -165,7 +165,7 @@ function call(port, method, url, body, headers) {
   r = await call(port, 'PUT', '/api/questions/' + newId, Object.assign({}, good, { q: '改过的题？' })); eq(r.status, 200);
   eq(T.questions.find(q => q.id === newId).q, '改过的题？');
   r = await call(port, 'DELETE', '/api/questions/' + newId); eq(r.status, 200);
-  eq(T.questions.length, 151);
+  eq(T.questions.length, T.DEFAULTS.length);
   // 删除到抽不满时给出友好提示
   const saved = T.questions.splice(0, T.questions.length);
   r = await A({ type: 'start', playerId: 'p1' }); ok(!r.ok && /题库/.test(r.error), '题库为空时提示补题');
@@ -175,7 +175,7 @@ function call(port, method, url, body, headers) {
   const all = T.questions.splice(0, T.questions.length); kept.forEach(q => T.questions.push(q));
   const pk = T.pickGame(3); ok(pk.ok && pk.qs.length === 12, '缺一类时仍能抽满');
   T.questions.splice(0, T.questions.length); all.forEach(q => T.questions.push(q));
-  r = await call(port, 'POST', '/api/questions/reset'); eq(r.json.count, 151);
+  r = await call(port, 'POST', '/api/questions/reset'); eq(r.json.count, T.DEFAULTS.length);
   console.log('  题库增删改 OK');
 
   /* 7b. 选手学段：默认值、修改、PUT 不带学段时保持不变、抽题用选手自己的学段 */
@@ -207,7 +207,7 @@ function call(port, method, url, body, headers) {
   const ex = await call(port, 'GET', '/api/export');
   eq(ex.status, 200); ok(/attachment/.test(ex.headers['content-disposition']));
   const backupData = JSON.parse(ex.text);
-  eq(backupData.questions.length, 151); eq(backupData.version, 2); ok(backupData.players.every(p => p.stage), '导出含选手学段'); eq(backupData.history.length, n0);
+  eq(backupData.questions.length, T.DEFAULTS.length); eq(backupData.version, 2); ok(backupData.players.every(p => p.stage), '导出含选手学段'); eq(backupData.history.length, n0);
   await call(port, 'POST', '/api/history/clear'); eq(T.scores.history.length, 0);
   r = await call(port, 'POST', '/api/import', { mode: 'replace', data: backupData });
   eq(r.status, 200); eq(T.scores.history.length, n0, '覆盖导入后记录恢复');
@@ -219,11 +219,11 @@ function call(port, method, url, body, headers) {
   const extra = JSON.parse(JSON.stringify(backupData));
   extra.questions.push({ id: 'q001', cat: '文史', stage: 1, q: '合并进来的新题？', options: ['A1', 'B1', 'C1', 'D1'], answer: 0, explain: '' });
   r = await call(port, 'POST', '/api/import', { mode: 'merge', data: extra });
-  eq(r.json.summary.questions, 1); eq(T.questions.length, 152);
-  eq(new Set(T.questions.map(q => q.id)).size, 152, '合并时 id 冲突已处理');
+  eq(r.json.summary.questions, 1); eq(T.questions.length, T.DEFAULTS.length + 1);
+  eq(new Set(T.questions.map(q => q.id)).size, T.DEFAULTS.length + 1, '合并时 id 冲突已处理');
   // 坏文件
   r = await call(port, 'POST', '/api/import', { mode: 'replace', data: { app: 'family-millionaire', questions: [{ cat: '文史' }] } });
-  eq(r.status, 400); eq(T.questions.length, 152, '坏文件不会改动数据');
+  eq(r.status, 400); eq(T.questions.length, T.DEFAULTS.length + 1, '坏文件不会改动数据');
   r = await call(port, 'POST', '/api/import', { mode: 'replace', data: { app: 'other' } }); eq(r.status, 400);
   ok(fs.readdirSync(path.join(tmp, 'backups')).length > 0, '已自动生成备份文件');
   console.log('  记分牌 / 导入导出 OK');

@@ -16,11 +16,12 @@ const eq = (a, b, m) => { assert.deepStrictEqual(a, b, m); pass++; };
 /** 在给定数据目录里加载 server.js，打印 questions/scores/notices 的概要 JSON */
 function boot(dir) {
   const code = "const T=require(" + JSON.stringify(path.join(ROOT, 'server.js')) + ")._test;" +
-    "const v=T.view('host');console.log(JSON.stringify({q:T.questions,p:T.scores.players,h:T.scores.history,notices:v.notices}));process.exit(0)";
+    "const v=T.view('host');require('fs').writeFileSync(1,JSON.stringify({q:T.questions,p:T.scores.players,h:T.scores.history,notices:v.notices})+String.fromCharCode(10));process.exit(0)";
   const out = execFileSync('node', ['-e', code], { env: Object.assign({}, process.env, { MILLIONAIRE_DATA: dir, PORT: '0', HOST_PIN: '' }), encoding: 'utf8' });
   return JSON.parse(out.trim().split('\n').pop());
 }
 const mk = () => fs.mkdtempSync(path.join(os.tmpdir(), 'mill-mig-'));
+const DEFQ = JSON.parse(fs.readFileSync(path.join(ROOT, 'defaults', 'questions.default.json'), 'utf8')).questions;
 
 /* 1. 旧版（无 stage、无 defaultsVersion）的数据升级 */
 {
@@ -36,7 +37,10 @@ const mk = () => fs.mkdtempSync(path.join(os.tmpdir(), 'mill-mig-'));
   }));
   const r = boot(d);
   ok(r.q.every(q => [1, 2, 3, 4].includes(q.stage) && !('level' in q)), '所有题都有学段');
-  eq(r.q.length, 100 - 3 + 1 + 51, '旧题 97 + 用户题 1 + 新增 51');
+  const haveStems = new Set(qs.map(q => String(q.q).trim()));
+  const old100 = new Set(); for (let i = 1; i <= 100; i++) old100.add('q' + String(i).padStart(3, '0'));
+  const expectNew = DEFQ.filter(d => !old100.has(d.id) && !haveStems.has(d.q.trim())).length;
+  eq(r.q.length, qs.length + expectNew, '旧题保留 + 用户题保留 + 新增默认题');
   ok(!r.q.some(q => ['q011', 'q012', 'q013'].includes(q.id)), '用户删掉的旧题不会回来');
   eq(r.q.find(q => q.id === 'u1').stage, 2, '用户题 level 2 → 初中');
   eq(r.q.find(q => q.id === 'q023').stage, 4, '默认题按新标签：q023 洛阳纸贵 = 大学');
@@ -57,7 +61,7 @@ const mk = () => fs.mkdtempSync(path.join(os.tmpdir(), 'mill-mig-'));
 {
   const d = mk();
   const r = boot(d);
-  eq(r.q.length, 151); eq((r.notices || []).length, 0);
+  eq(r.q.length, DEFQ.length); eq((r.notices || []).length, 0);
   eq(r.p.map(p => p.stage), [3, 4, 2], '默认选手学段：太太高中/大儿子大学/小女儿初中');
 }
 
@@ -89,7 +93,7 @@ const mk = () => fs.mkdtempSync(path.join(os.tmpdir(), 'mill-mig-'));
   const d = mk();
   fs.writeFileSync(path.join(d, 'questions.json'), '{"hello":1}');
   const r = boot(d);
-  eq(r.q.length, 151);
+  eq(r.q.length, DEFQ.length);
   ok(fs.readdirSync(d).some(n => /^questions\.corrupt-/.test(n)));
 }
 

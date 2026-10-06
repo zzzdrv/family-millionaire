@@ -5,7 +5,13 @@
    "name": "太太",
    "avatar": "太",
    "color": "#f5a623",
-   "stage": 3
+   "stage": 3,
+   "catW": {
+    "文史": 100,
+    "理科": 100,
+    "通识": 100,
+    "二次元": 0
+   }
   },
   {
    "id": "p2",
@@ -99,6 +105,19 @@
    "wrongAt": 6,
    "fifty": true,
    "swap": false,
+   "stage": 3
+  },
+  {
+   "id": "hmuv9lb8t5b6f",
+   "ts": 1791205642541,
+   "playerId": "p3",
+   "playerName": "小女儿",
+   "prize": 20,
+   "result": "win",
+   "reached": 12,
+   "wrongAt": 0,
+   "fifty": true,
+   "swap": true,
    "stage": 3
   }
  ],
