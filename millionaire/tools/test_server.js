@@ -215,15 +215,16 @@ function call(port, method, url, body, headers) {
   r = await call(port, 'POST', '/api/import', { mode: 'merge', data: backupData });
   eq(r.status, 200); eq(T.scores.history.length, n0, '合并导入不重复'); eq(r.json.summary.questions, 0);
   eq(T.scores.players.length, 3);
-  // 合并：新题加入
+  // 合并：新题加入（默认勾选"同时记入默认题库"，live 和默认题库各 +1）
   const extra = JSON.parse(JSON.stringify(backupData));
   extra.questions.push({ id: 'q001', cat: '文史', stage: 1, q: '合并进来的新题？', options: ['A1', 'B1', 'C1', 'D1'], answer: 0, explain: '' });
+  const q0 = T.questions.length, d0 = T.DEFAULTS.length;
   r = await call(port, 'POST', '/api/import', { mode: 'merge', data: extra });
-  eq(r.json.summary.questions, 1); eq(T.questions.length, T.DEFAULTS.length + 1);
-  eq(new Set(T.questions.map(q => q.id)).size, T.DEFAULTS.length + 1, '合并时 id 冲突已处理');
+  eq(r.json.summary.questions, 1); eq(T.questions.length, q0 + 1, 'live +1'); eq(T.DEFAULTS.length, d0 + 1, '默认题库自动重建 +1');
+  eq(new Set(T.questions.map(q => q.id)).size, T.questions.length, '合并时 id 冲突已处理');
   // 坏文件
   r = await call(port, 'POST', '/api/import', { mode: 'replace', data: { app: 'family-millionaire', questions: [{ cat: '文史' }] } });
-  eq(r.status, 400); eq(T.questions.length, T.DEFAULTS.length + 1, '坏文件不会改动数据');
+  eq(r.status, 400); eq(T.questions.length, q0 + 1, '坏文件不会改动数据'); eq(T.DEFAULTS.length, d0 + 1, '坏文件不触发重建');
   r = await call(port, 'POST', '/api/import', { mode: 'replace', data: { app: 'other' } }); eq(r.status, 400);
   ok(fs.readdirSync(path.join(tmp, 'backups')).length > 0, '已自动生成备份文件');
   console.log('  记分牌 / 导入导出 OK');

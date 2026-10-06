@@ -22,10 +22,11 @@ const F_G = path.join(DATA, 'game.json');
 const F_CUS = path.join(DATA, 'questions.custom.json');   // 用户积累的题（面板导入/加题时记入，build 时合并进默认题库）
 const F_DEF = path.join(ROOT, 'defaults', 'questions.default.json');
 const F_BASE = path.join(ROOT, 'tools', 'questions.base.json');   // 出厂题库（build 输入之一，一次性补录时做差集）
+const F_CONFIG = process.env.MILLIONAIRE_CONFIG || path.join(DATA, 'config.json');   // 服务配置：运行时用户数据，随 data/ 走；测试时可用环境变量指向临时文件
 
 const CATS = ['文史', '理科', '通识', '二次元'];
 const STAGES = ['小学', '初中', '高中', '大学'];   // 题目/选手的学段，序号 1~4
-const VERSION = '3.9.1';                          // 程序版本：数据页底部显示，发版时改这里一处即可
+const VERSION = '4.1';                            // 程序版本：数据页底部显示，发版时改这里一处即可
 const DEFAULT_STAGE = 3;                          // 选手没设置学段时的默认值（高中）
 const DEFAULTS_VERSION = 2;                       // 默认题库版本：2 = 带学段标签（题目数量见 defaults/questions.default.json，不写死）
 const clampStage = (n) => Math.max(1, Math.min(4, n));
@@ -63,27 +64,26 @@ const PALETTE = ['#f5a623', '#4fc3f7', '#f06292', '#81c784', '#ba68c8', '#ff8a65
 const MAX_PLAYERS = 6;
 
 /* ───────────── 配置 ───────────── */
+// 新部署：data/config.json 不存在则自动创建（默认值 port 3000、空口令、maxPrize 20）
+if (!fs.existsSync(F_CONFIG)) writeJson(F_CONFIG, { port: 3000, hostPin: '', maxPrize: 20 });
 const cfg = { port: 3000, hostPin: '' };
-try { Object.assign(cfg, JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8'))); } catch (e) { /* 没有配置文件就用默认值 */ }
+try { Object.assign(cfg, JSON.parse(fs.readFileSync(F_CONFIG, 'utf8'))); } catch (e) { /* 没有配置文件就用默认值 */ }
 if (process.env.PORT) cfg.port = Number(process.env.PORT);
 if (process.env.HOST_PIN !== undefined) cfg.hostPin = process.env.HOST_PIN;
 if (process.env.MAX_PRIZE !== undefined) cfg.maxPrize = process.env.MAX_PRIZE;
 cfg.hostPin = String(cfg.hostPin || '');
-// 奖金梯优先级：显式 ladder 数组 > maxPrize 自动生成 > 默认
-const _explicit = parseLadder(cfg.ladder);
+// 奖金梯优先级：显式 ladder 数组 > maxPrize 自动生成 > 默认；面板改完可即时重建
 let LADDER;
-if (_explicit) {
-  LADDER = _explicit;
-} else {
-  if (cfg.ladder !== undefined) console.log('⚠️  config.json 里的 ladder 不合法（需要 12 个递增的正数），已忽略');
+function applyPrizeConfig() {
+  const _explicit = parseLadder(cfg.ladder);
+  if (_explicit) { LADDER = _explicit; return 'ladder'; }
   const _built = cfg.maxPrize !== undefined ? buildLadder(cfg.maxPrize) : null;
-  if (_built) {
-    LADDER = _built;
-  } else {
-    if (cfg.maxPrize !== undefined) console.log('⚠️  config.json 里的 maxPrize 不合法（需要正数），已使用默认奖金梯');
-    LADDER = DEFAULT_LADDER;
-  }
+  LADDER = _built || DEFAULT_LADDER;
+  return _built ? 'maxPrize' : 'default';
 }
+const _prizeSrc = applyPrizeConfig();
+if (_prizeSrc !== 'ladder' && cfg.ladder !== undefined) console.log('⚠️  config.json 里的 ladder 不合法（需要 12 个递增的正数），已忽略');
+if (_prizeSrc === 'default' && cfg.maxPrize !== undefined) console.log('⚠️  config.json 里的 maxPrize 不合法（需要正数），已使用默认奖金梯');
 
 /* ───────────── 文件读写 + 自动备份 ───────────── */
 function readJson(f, fallback) {
@@ -1008,6 +1008,33 @@ async function api(req, res, u) {
       return send(res, 200, { ok: true, mode, summary });
     } catch (e) { return send(res, 400, { error: e.message }); }
   }
+  if (p === '/api/config' && m === 'GET') {
+    // 已鉴权：直接返回明文，面板填表用
+    return send(res, 200, { port: cfg.port, hostPin: cfg.hostPin, maxPrize: cfg.maxPrize, hasLadder: !!parseLadder(cfg.ladder), ladder: LADDER });
+  }
+  if (p === '/api/config' && m === 'POST') {
+    // 面板改服务设置：写 config.json（先备份），内存即时生效，无需重启。
+    // 只管 hostPin/maxPrize；port 改动需重启，不开放。maxPrize 接管后删掉显式 ladder（否则改了没效果）。
+    const pin = body.hostPin === undefined ? cfg.hostPin : String(body.hostPin || '');
+    if (!/^[\x20-\x7E]*$/.test(pin)) return send(res, 400, { error: '口令只能用字母、数字和符号（HTTP 请求头不支持中文）' });
+    let mp = cfg.maxPrize, touchPrize = false;
+    if (body.maxPrize !== undefined && body.maxPrize !== null && String(body.maxPrize) !== '') {
+      mp = Number(body.maxPrize);
+      if (!Number.isFinite(mp) || mp <= 0) return send(res, 400, { error: '最高奖金必须是正数' });
+      touchPrize = true;
+    }
+    const cur = readJson(F_CONFIG, {});
+    const next = Object.assign({}, cur);
+    next.hostPin = pin;
+    if (touchPrize) { next.maxPrize = mp; delete next.ladder; }
+    backup(F_CONFIG, true);
+    writeJson(F_CONFIG, next);
+    cfg.hostPin = pin;
+    if (touchPrize) { cfg.maxPrize = mp; delete cfg.ladder; }
+    applyPrizeConfig();
+    scheduleBroadcast();
+    return send(res, 200, { ok: true, ladder: LADDER });
+  }
 
   return send(res, 404, { error: '没有这个接口' });
 }
@@ -1077,4 +1104,4 @@ if (require.main === module) {
     console.log('===========================================================\n');
   });
 }
-module.exports = { server, cfg, _test: { act, view, pickGame, normCatW, applyImport, appendCustom, upsertCustom, removeCustom, tombstoneCustom, rebuildDefaults, DEFAULTS, BASE, get customQuestions() { return customQuestions; }, get lastRebuild() { return lastRebuild; }, get game() { return game; }, get questions() { return questions; }, get scores() { return scores; }, LADDER, DEFAULT_LADDER, parseLadder, buildLadder, fallbackPrize } };
+module.exports = { server, cfg, _test: { act, view, pickGame, normCatW, applyImport, appendCustom, upsertCustom, removeCustom, tombstoneCustom, rebuildDefaults, applyPrizeConfig, DEFAULTS, BASE, get customQuestions() { return customQuestions; }, get lastRebuild() { return lastRebuild; }, get game() { return game; }, get questions() { return questions; }, get scores() { return scores; }, get ladder() { return LADDER; }, LADDER, DEFAULT_LADDER, parseLadder, buildLadder, fallbackPrize } };

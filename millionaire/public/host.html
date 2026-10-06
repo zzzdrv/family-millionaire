@@ -547,10 +547,15 @@ pre.mono{white-space:pre-wrap;word-break:break-all;font-size:13px;color:var(--di
       '<pre class="mono">' + (INFO.lan.length ? INFO.lan.map(function (a) { return 'http://' + a.address + ':' + INFO.port + '/   （' + esc(a.name) + '）'; }).join('\n') : '没有检测到局域网地址') + '</pre></div>';
     h += '<div class="card"><b>导出备份</b><div class="small" style="margin:6px 0 10px">包含全部题库、选手、记分牌和输赢记录，是一个 JSON 文件。</div><button class="gold big" id="exp">导出备份文件</button></div>';
     h += '<div class="card"><b>导入备份</b><div class="small" style="margin:6px 0 10px">选择之前导出的 JSON 文件。导入前会先自动备份当前数据。</div><input type="file" id="impF" accept=".json,application/json"><div id="impInfo" class="small" style="margin-top:8px"></div></div>';
+    h += '<div class="card"><b>服务设置</b><div class="small" style="margin:6px 0 10px">主持人口令和单局最高奖金，保存后立即生效，不用重启。奖金梯按总额自动重排（12 级严格递增）。如需完全自定义每级金额，仍需手动改 config.json 的 ladder 数组。</div>' +
+      '<label>主持人口令（字母、数字、符号；留空 = 不设口令，同一 Wi-Fi 任何人可操作）</label><input id="cfgPin" type="password" autocomplete="new-password" placeholder="未设置">' +
+      '<label>单局最高奖金（元，正数）</label><input id="cfgPrize" type="number" min="1" step="0.5" inputmode="decimal">' +
+      '<div class="small" id="cfgLadder" style="margin:6px 0"></div>' +
+      '<button class="gold big" id="cfgSave">保存设置</button></div>';
     h += '<div class="card"><b>恢复默认题库</b><div class="small" style="margin:6px 0 10px">把题库还原成默认的 ' + INFO.defaultsCount + ' 题（你新增和修改的题会被替换，不影响记分牌；操作前自动备份）。</div><button class="red" id="rst">恢复默认题库</button></div>';
     h += '<div class="card"><b>补充新题</b><div class="small" style="margin:6px 0 10px">把默认题库里有、本机题库里没有的题目补充进来（比如新版多了几百道题，点一下就进题库，不用重新导入）。</div><button class="gold big" id="supp">从默认题库补充新题</button></div>';
     h += '<div class="card"><b>记入默认题库</b><div class="small" style="margin:6px 0 10px">把本机题库里新增的题目（出厂题库里没有的）一次性记入默认题库，自动重建。可重复点，不会重复记入。</div><button class="big" id="csync">把新增题目记入默认题库</button></div>';
-    h += '<div class="card small">数据保存在电脑上的：<br>' + esc(INFO.dataDir) + '<br>里面的 questions.json、scores.json 就是全部数据，拷走这个文件夹也是备份。每次修改前，系统会在 backups 子目录里自动留一份带时间的备份。' + (INFO.pin ? '<br>主持人口令：已开启。' : '<br>主持人口令：未设置（想设置就在 config.json 里填 hostPin）。') + '</div>';
+    h += '<div class="card small">数据保存在电脑上的：<br>' + esc(INFO.dataDir) + '<br>里面的 questions.json、scores.json 就是全部数据，拷走这个文件夹也是备份。每次修改前，系统会在 backups 子目录里自动留一份带时间的备份。' + (INFO.pin ? '<br>主持人口令：已开启。' : '<br>主持人口令：未设置（在上面"服务设置"里填）。') + '</div>';
     h += '<div class="small" style="text-align:center;color:var(--dim);margin-top:14px">家庭百万富翁 v' + esc(INFO.version || '?') + ' · 默认题库 ' + INFO.defaultsCount + ' 题</div>';
     el.innerHTML = h;
     $('exp').onclick = function () {
@@ -572,6 +577,28 @@ pre.mono{white-space:pre-wrap;word-break:break-all;font-size:13px;color:var(--di
     };
     $('csync').onclick = function () {
       api('POST', '/api/custom/sync', {}).then(function (j) { toast(j.added ? '已记入默认题库 ' + j.added + ' 道，默认题库共 ' + j.total + ' 道' : '没有新增题目需要记入，默认题库共 ' + j.total + ' 道'); }).catch(function (e) { toast(e.message, true); });
+    };
+    /* 服务设置：读当前值填表，保存写 config.json（即时生效） */
+    api('GET', '/api/config', {}).then(function (j) {
+      $('cfgPin').value = j.hostPin || '';
+      $('cfgPin').placeholder = j.hostPin ? '已设置（点眼睛查看/修改）' : '未设置';
+      $('cfgPrize').value = j.maxPrize !== undefined ? j.maxPrize : '';
+      $('cfgPrize').placeholder = '默认 20';
+      $('cfgLadder').textContent = '当前奖金梯：' + j.ladder.join(' → ') + '（元）' + (j.hasLadder ? '（config.json 里有自定义 ladder，改最高奖金不会生效）' : '');
+    }).catch(function () { /* 读不到就不填，不影响其他功能 */ });
+    var _showPin = false;
+    $('cfgPin').addEventListener('dblclick', function () { _showPin = !_showPin; $('cfgPin').type = _showPin ? 'text' : 'password'; });
+    $('cfgSave').onclick = function () {
+      var pin = $('cfgPin').value, prize = $('cfgPrize').value.trim();
+      var body = { hostPin: pin };
+      if (prize !== '') body.maxPrize = Number(prize);
+      if (prize !== '' && !(Number(prize) > 0)) { toast('最高奖金必须是正数', true); return; }
+      if (!pin && !confirm('口令留空 = 不设口令，同一 Wi-Fi 下任何人都能操作主持人面板。确定吗？')) return;
+      api('POST', '/api/config', body).then(function (j) {
+        toast('已保存，立即生效');
+        $('cfgLadder').textContent = '当前奖金梯：' + j.ladder.join(' → ') + '（元）';
+        if (pin !== PIN) { PIN = pin; try { sessionStorage.setItem('hostpin', PIN); } catch (e) {} }  // 口令换了，面板跟着换，免得下一次请求 401
+      }).catch(function (e) { toast(e.message, true); });
     };
     $('impF').onchange = function () {
       var f = this.files && this.files[0]; if (!f) return;
