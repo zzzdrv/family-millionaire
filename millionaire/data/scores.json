@@ -18,14 +18,14 @@
    "name": "大儿子",
    "avatar": "哥",
    "color": "#4fc3f7",
-   "stage": 3
+   "stage": 4
   },
   {
    "id": "p3",
    "name": "小女儿",
    "avatar": "妹",
    "color": "#f06292",
-   "stage": 3
+   "stage": 2
   }
  ],
  "history": [
