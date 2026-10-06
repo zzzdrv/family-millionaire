@@ -121,10 +121,6 @@ apt install -y nodejs
 node -v   # 应显示 v22.x
 ```
 
-### 运行
-
-`node server.js`
-
 ### systemd 保活
 
 ```
@@ -160,6 +156,10 @@ systemctl status millionaire --no-pager   # 看 Active: active (running)
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000/   # 应返回 200
 journalctl -u millionaire -n 20           # 看启动日志，确认奖金梯、地址打印正常
 ```
+
+### 运行
+
+systemd 服务配了开机自启和崩溃自动重启，日常出问题 systemctl restart millionaire.service 就行。
 
 ### 更新代码
 
